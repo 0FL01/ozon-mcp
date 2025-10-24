@@ -172,13 +172,15 @@ function render() {
       return;
     }
 
-    if (state.showSettings) {
-      root.innerHTML = renderSettings();
-    } else {
-      root.innerHTML = renderMain();
-    }
+    const html = state.showSettings ? renderSettings() : renderMain();
+    console.log('[Popup] Rendering, HTML length:', html.length);
+    root.innerHTML = html;
+    console.log('[Popup] Root innerHTML set, checking content...');
+    console.log('[Popup] Root children count:', root.children.length);
+    console.log('[Popup] Root first child:', root.firstElementChild?.tagName);
 
     attachEventListeners();
+    console.log('[Popup] Event listeners attached');
   } catch (error) {
     console.error('[Popup] Render error:', error);
     throw error;
