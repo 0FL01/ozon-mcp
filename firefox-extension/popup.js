@@ -1,3 +1,20 @@
+// Logging utility - only logs if debug mode is enabled
+function log(...args) {
+  // Check if debug mode is enabled (async check, but log synchronously if already loaded)
+  if (state && state.debugMode) {
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
+    console.log(`[Blueprint MCP for Firefox] ${time}`, ...args);
+  }
+}
+
+// Always log (ignore debug setting) - for errors and critical info
+function logAlways(...args) {
+  const now = new Date();
+  const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
+  console.log(`[Blueprint MCP for Firefox] ${time}`, ...args);
+}
+
 // Constants (matching Chrome's config.ts)
 const API_HOST = 'https://mcp-for-chrome.railsblueprint.com';
 const config = {
@@ -168,21 +185,21 @@ function render() {
     const root = document.getElementById('root');
 
     if (!root) {
-      console.error('[Popup] Root element not found!');
+      log('[Popup] Root element not found!');
       return;
     }
 
     const html = state.showSettings ? renderSettings() : renderMain();
-    console.log('[Popup] Rendering, HTML length:', html.length);
+    log('[Popup] Rendering, HTML length:', html.length);
     root.innerHTML = html;
-    console.log('[Popup] Root innerHTML set, checking content...');
-    console.log('[Popup] Root children count:', root.children.length);
-    console.log('[Popup] Root first child:', root.firstElementChild?.tagName);
+    log('[Popup] Root innerHTML set, checking content...');
+    log('[Popup] Root children count:', root.children.length);
+    log('[Popup] Root first child:', root.firstElementChild?.tagName);
 
     attachEventListeners();
-    console.log('[Popup] Event listeners attached');
+    log('[Popup] Event listeners attached');
   } catch (error) {
-    console.error('[Popup] Render error:', error);
+    logAlways('[Popup] Render error:', error);
     throw error;
   }
 }
@@ -440,11 +457,11 @@ function attachEventListeners() {
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    console.log('[Popup] Initializing...');
+    log('[Popup] Initializing...');
     await loadState();
-    console.log('[Popup] State loaded:', state);
+    log('[Popup] State loaded:', state);
     await updateStatus();
-    console.log('[Popup] Status updated');
+    log('[Popup] Status updated');
 
     // Listen for status change broadcasts from background script
     browser.runtime.onMessage.addListener((message) => {
@@ -482,9 +499,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    console.log('[Popup] Initialization complete');
+    log('[Popup] Initialization complete');
   } catch (error) {
-    console.error('[Popup] Initialization error:', error);
+    logAlways('[Popup] Initialization error:', error);
     document.getElementById('root').innerHTML = `
       <div class="popup-container">
         <div class="popup-header">

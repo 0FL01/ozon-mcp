@@ -1,7 +1,36 @@
 // Firefox extension background script
 // Connects to MCP server and handles browser automation commands
 
-console.log('[Firefox MCP] Extension loaded');
+// Logging utilities
+let debugMode = false;
+
+// Load debug mode setting on startup
+browser.storage.local.get(['debugMode']).then(result => {
+  debugMode = result.debugMode || false;
+});
+
+// Listen for debug mode changes
+browser.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'local' && changes.debugMode) {
+    debugMode = changes.debugMode.newValue || false;
+  }
+});
+
+function log(...args) {
+  if (debugMode) {
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
+    console.log(`[Blueprint MCP for Firefox] ${time}`, ...args);
+  }
+}
+
+function logAlways(...args) {
+  const now = new Date();
+  const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
+  console.log(`[Blueprint MCP for Firefox] ${time}`, ...args);
+}
+
+logAlways('[Background] Extension loaded');
 
 let socket = null;
 let isConnected = false;
@@ -21,7 +50,7 @@ function decodeJWT(token) {
     const payload = JSON.parse(atob(parts[1]));
     return payload;
   } catch (e) {
-    console.log('[Firefox MCP] Failed to decode JWT:', e.message);
+    log('[Background] Failed to decode JWT:', e.message);
     return null;
   }
 }
@@ -188,7 +217,7 @@ async function setupDialogOverrides(tabId, accept = true, promptText = '') {
       `
     });
   } catch (error) {
-    console.log('[Firefox MCP] Could not inject dialog overrides:', error.message);
+    log('[Background] Could not inject dialog overrides:', error.message);
   }
 }
 
@@ -204,7 +233,7 @@ async function autoConnect() {
       // PRO user: use connection URL from JWT token
       url = userInfo.connectionUrl;
       isPro = true;
-      console.log(`[Firefox MCP] PRO mode: Connecting to relay server ${url}...`);
+      log(`[Background] PRO mode: Connecting to relay server ${url}...`);
 
       // Set isPro flag in storage for popup
       await browser.storage.local.set({ isPro: true });
@@ -213,7 +242,7 @@ async function autoConnect() {
       const result = await browser.storage.local.get(['mcpPort']);
       const port = result.mcpPort || '5555';
       url = `ws://127.0.0.1:${port}/extension`;
-      console.log(`[Firefox MCP] Free mode: Connecting to ${url}...`);
+      log(`[Background] Free mode: Connecting to ${url}...`);
 
       // Clear isPro flag in storage
       await browser.storage.local.set({ isPro: false });
@@ -222,7 +251,7 @@ async function autoConnect() {
     socket = new WebSocket(url);
 
     socket.onopen = () => {
-      console.log('[Firefox MCP] Connected');
+      log('[Background] Connected');
       isConnected = true;
 
       // In PRO mode (relay), don't send handshake - wait for authenticate request
@@ -234,7 +263,7 @@ async function autoConnect() {
           version: browser.runtime.getManifest().version
         }));
       } else {
-        console.log('[Firefox MCP] PRO mode: Waiting for authenticate request from proxy...');
+        log('[Background] PRO mode: Waiting for authenticate request from proxy...');
       }
     };
 
@@ -242,13 +271,19 @@ async function autoConnect() {
       let message;
       try {
         message = JSON.parse(event.data);
-        console.log('[Firefox MCP] Received command:', message);
+        log('[Background] Received command:', message);
+
+        // Handle error responses from server
+        if (message.error) {
+          logAlways('[Background] Server error response:', message.error);
+          return;
+        }
 
         // Handle notifications (no id, has method)
         if (!message.id && message.method) {
           if (message.method === 'authenticated' && message.params?.client_id) {
             projectName = message.params.client_id;
-            console.log('[Firefox MCP] Project name set:', projectName);
+            log('[Background] Project name set:', projectName);
           }
           return; // Don't send response for notifications
         }
@@ -256,14 +291,16 @@ async function autoConnect() {
         const response = await handleCommand(message);
 
         socket.send(JSON.stringify({
+          jsonrpc: '2.0',
           id: message.id,
           result: response
         }));
       } catch (error) {
-        console.error('[Firefox MCP] Command error:', error);
+        logAlways('[Background] Command error:', error);
         // Send error response if we have a message id
         if (message && message.id) {
           socket.send(JSON.stringify({
+            jsonrpc: '2.0',
             id: message.id,
             error: {
               message: error.message,
@@ -275,12 +312,12 @@ async function autoConnect() {
     };
 
     socket.onerror = (error) => {
-      console.error('[Firefox MCP] WebSocket error:', error);
+      logAlways('[Background] WebSocket error:', error);
       isConnected = false;
     };
 
     socket.onclose = () => {
-      console.log('[Firefox MCP] Disconnected from MCP server');
+      log('[Background] Disconnected from MCP server');
       isConnected = false;
 
       // Retry connection after 5 seconds
@@ -288,7 +325,7 @@ async function autoConnect() {
     };
 
   } catch (error) {
-    console.error('[Firefox MCP] Connection error:', error);
+    logAlways('[Background] Connection error:', error);
     setTimeout(autoConnect, 5000);
   }
 }
@@ -300,20 +337,31 @@ async function handleCommand(message) {
   switch (method) {
     case 'authenticate':
       // PRO mode: Proxy is requesting authentication
-      // Get stored tokens from browser.storage
-      const result = await browser.storage.local.get(['accessToken', 'refreshToken']);
+      // Get stored tokens and browser name from browser.storage
+      const result = await browser.storage.local.get(['accessToken', 'refreshToken', 'browserName', 'stableClientId']);
 
       if (!result.accessToken) {
         throw new Error('No authentication tokens found. Please login via MCP client first.');
       }
 
-      console.log('[Firefox MCP] Responding to authenticate request with stored tokens');
-      return {
+      const browserName = result.browserName || 'Firefox';
+
+      // Get or generate stable client_id (matches Chrome's behavior)
+      let clientId = result.stableClientId;
+      if (!clientId) {
+        // Generate stable ID based on browser install ID
+        const info = await browser.runtime.getBrowserInfo();
+        clientId = `firefox-${info.name}-${browser.runtime.id}`;
+        await browser.storage.local.set({ stableClientId: clientId });
+      }
+
+      const authResponse = {
+        name: browserName,
         access_token: result.accessToken,
-        refresh_token: result.refreshToken,
-        browser_name: 'Firefox',
-        browser_version: browser.runtime.getManifest().version
+        client_id: clientId
       };
+      logAlways('[Background] Responding to authenticate request:', JSON.stringify(authResponse, null, 2));
+      return authResponse;
 
     case 'getTabs':
       return await handleGetTabs();
@@ -614,7 +662,7 @@ async function handleKeyEvent(params) {
 async function handleCDPCommand(params) {
   const { method, params: cdpParams } = params;
 
-  console.log('[Firefox MCP] handleCDPCommand called:', method, 'tab:', attachedTabId);
+  log('[Background] handleCDPCommand called:', method, 'tab:', attachedTabId);
 
   if (!attachedTabId) {
     throw new Error('No tab attached. Call selectTab or createTab first.');
@@ -651,14 +699,14 @@ async function handleCDPCommand(params) {
     case 'Runtime.evaluate':
       // Execute JavaScript in the tab's content
       try {
-        console.log('[Firefox MCP] Executing script in tab:', attachedTabId);
-        console.log('[Firefox MCP] Script:', cdpParams.expression.substring(0, 200));
+        log('[Background] Executing script in tab:', attachedTabId);
+        log('[Background] Script:', cdpParams.expression.substring(0, 200));
 
         const results = await browser.tabs.executeScript(attachedTabId, {
           code: cdpParams.expression
         });
 
-        console.log('[Firefox MCP] Script result:', results);
+        log('[Background] Script result:', results);
 
         return {
           result: {
@@ -667,7 +715,7 @@ async function handleCDPCommand(params) {
           }
         };
       } catch (error) {
-        console.error('[Firefox MCP] Script execution failed:', error);
+        logAlways('[Background] Script execution failed:', error);
         throw error;
       }
 
@@ -952,7 +1000,7 @@ async function injectConsoleCapture(tabId) {
       `
     });
   } catch (error) {
-    console.error('[Firefox MCP] Failed to inject console capture:', error);
+    logAlways('[Background] Failed to inject console capture:', error);
   }
 }
 
@@ -960,7 +1008,7 @@ async function injectConsoleCapture(tabId) {
 browser.webNavigation.onCompleted.addListener(async (details) => {
   // Only re-inject if this is the attached tab and it's the main frame
   if (details.tabId === attachedTabId && details.frameId === 0) {
-    console.log('[Firefox MCP] Page loaded, re-injecting dialog overrides and console capture');
+    log('[Background] Page loaded, re-injecting dialog overrides and console capture');
     await injectConsoleCapture(details.tabId);
     await setupDialogOverrides(details.tabId);
   }
@@ -991,6 +1039,14 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
     });
     return true; // Async response
+  } else if (message.type === 'focusTab') {
+    // Focus the tab that sent this message
+    if (sender.tab && sender.tab.id) {
+      browser.tabs.update(sender.tab.id, { active: true }).then(() => {
+        sendResponse({ success: true });
+      });
+      return true; // Async response
+    }
   } else if (message.type === 'console_message') {
     // Store console message from content script
     consoleMessages.push(message.data);
@@ -1010,7 +1066,7 @@ browser.storage.onChanged.addListener((changes, areaName) => {
     // Only reconnect when user explicitly logs in/out (accessToken/refreshToken change)
     // Don't reconnect on isPro changes (those are set by autoConnect itself)
     if ((changes.accessToken || changes.refreshToken) && !isReconnecting) {
-      console.log('[Firefox MCP] User login/logout detected, reconnecting...');
+      log('[Background] User login/logout detected, reconnecting...');
       isReconnecting = true;
 
       // Close existing connection
