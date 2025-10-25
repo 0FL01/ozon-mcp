@@ -329,6 +329,19 @@ async function autoConnect() {
 
         const response = await handleCommand(message);
 
+        // Add current tab info to response (matches Chrome extension behavior)
+        // Include techStack in every response so MCP server state stays in sync
+        if (attachedTabId && attachedTabInfo) {
+          response.currentTab = {
+            id: attachedTabInfo.id,
+            title: attachedTabInfo.title,
+            url: attachedTabInfo.url,
+            index: attachedTabInfo.index,
+            techStack: attachedTabInfo.techStack || null
+          };
+          log('[Background] Added currentTab to response with techStack:', attachedTabInfo.techStack);
+        }
+
         socket.send(JSON.stringify({
           jsonrpc: '2.0',
           id: message.id,
@@ -775,18 +788,9 @@ async function handleCDPCommand(params) {
         techStack: techStackInfo[navigatedTab.id] || null  // Tech stack will be updated by content script after navigation
       };
 
-      // Return currentTab so server can update its cached state
-      const result = {
-        currentTab: {
-          id: navigatedTab.id,
-          title: navigatedTab.title,
-          url: navigatedTab.url,
-          index: previousIndex,
-          techStack: attachedTabInfo.techStack || null
-        }
-      };
-      logAlways('[Background] Returning from Page.navigate:', JSON.stringify(result));
-      return result;
+      // currentTab will be added by global response handler
+      logAlways('[Background] Page.navigate completed');
+      return {};
 
     case 'Page.reload':
       // Reload page using Firefox tabs.reload
