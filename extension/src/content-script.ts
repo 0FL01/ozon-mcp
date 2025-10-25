@@ -108,6 +108,11 @@ function detectTechStack(): TechStack {
       stack.frameworks.push('Ember');
       stack.spa = true;
     }
+    // Google Wiz - Google's internal web components framework
+    if (document.querySelector('c-wiz') || document.querySelector('c-data')) {
+      stack.frameworks.push('Google Wiz');
+      stack.spa = true;
+    }
 
     // JS Libraries
     if ((window as any).jQuery || (window as any).$) {
