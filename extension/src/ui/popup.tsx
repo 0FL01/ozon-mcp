@@ -364,7 +364,7 @@ const Popup: React.FC = () => {
           <button
             className="test-page-link"
             onClick={() => {
-              const testPageUrl = chrome.runtime.getURL('test-interactions.html');
+              const testPageUrl = 'https://blueprint-mcp.railsblueprint.com/test-page';
               chrome.tabs.create({ url: testPageUrl, active: true });
             }}
           >

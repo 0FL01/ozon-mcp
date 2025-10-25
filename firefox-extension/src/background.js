@@ -990,7 +990,7 @@ async function handleListExtensions() {
 
 // Handle openTestPage command
 async function handleOpenTestPage() {
-  const testPageUrl = browser.runtime.getURL('test.html');
+  const testPageUrl = 'https://blueprint-mcp.railsblueprint.com/test-page';
   const tab = await browser.tabs.create({ url: testPageUrl, active: true });
 
   // Test page always uses non-stealth mode

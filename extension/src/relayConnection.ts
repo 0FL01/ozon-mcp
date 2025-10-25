@@ -1031,7 +1031,7 @@ export class RelayConnection {
     }
     if (message.method === 'openTestPage') {
       debugLog('Opening test page in new window...');
-      const testPageUrl = chrome.runtime.getURL('test-interactions.html');
+      const testPageUrl = 'https://blueprint-mcp.railsblueprint.com/test-page';
       const window = await chrome.windows.create({
         url: testPageUrl,
         type: 'normal',

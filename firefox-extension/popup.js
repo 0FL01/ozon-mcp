@@ -439,7 +439,7 @@ function attachEventListeners() {
     }
     if (testPageButton) {
       testPageButton.addEventListener('click', () => {
-        const testPageUrl = browser.runtime.getURL('test.html');
+        const testPageUrl = 'https://blueprint-mcp.railsblueprint.com/test-page';
         browser.tabs.create({ url: testPageUrl, active: true });
       });
     }
