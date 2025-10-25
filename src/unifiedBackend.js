@@ -762,15 +762,18 @@ class UnifiedBackend {
         throw new Error('URL is required when action is "url"');
       }
 
-      await this._transport.sendCommand('forwardCDPCommand', {
+      const result = await this._transport.sendCommand('forwardCDPCommand', {
         method: 'Page.navigate',
         params: { url: args.url }
       });
 
+      // Use detailed message from extension if available
+      const message = result?.message || `Navigated to: ${args.url}`;
+
       return {
         content: [{
           type: 'text',
-          text: `### Navigated\n\nURL: ${args.url}`
+          text: `### Navigated\n\n${message}`
         }],
         isError: false
       };

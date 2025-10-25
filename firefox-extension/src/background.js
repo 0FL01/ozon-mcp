@@ -752,6 +752,13 @@ async function handleCDPCommand(params) {
     case 'Page.navigate':
       // Navigate to URL using Firefox tabs.update
       const targetUrl = cdpParams.url;
+
+      // Clear old tech stack data before navigation to avoid showing stale data
+      if (techStackInfo[attachedTabId]) {
+        logAlways('[Background] Clearing old tech stack before navigation');
+        delete techStackInfo[attachedTabId];
+      }
+
       await browser.tabs.update(attachedTabId, { url: targetUrl });
 
       // Wait for navigation to complete
@@ -775,22 +782,60 @@ async function handleCDPCommand(params) {
         }, 10000);
       });
 
+      // Wait for content script to detect tech stack (runs ~100ms after DOMContentLoaded)
+      logAlways('[Background] Waiting for tech stack detection...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Get updated tab info
       const navigatedTab = await browser.tabs.get(attachedTabId);
 
       // Update cached tab info - preserve existing index since navigation doesn't change tab position
       const previousIndex = attachedTabInfo?.index;
+      const detectedStack = techStackInfo[navigatedTab.id] || null;
+
       attachedTabInfo = {
         id: navigatedTab.id,
         title: navigatedTab.title,
         url: navigatedTab.url,
         index: previousIndex,  // Preserve index from when tab was attached
-        techStack: techStackInfo[navigatedTab.id] || null  // Tech stack will be updated by content script after navigation
+        techStack: detectedStack
       };
 
-      // currentTab will be added by global response handler
-      logAlways('[Background] Page.navigate completed');
-      return {};
+      // Build detailed tech stack explanation
+      let techStackMessage = '';
+      if (detectedStack) {
+        const parts = [];
+        if (detectedStack.frameworks && detectedStack.frameworks.length > 0) {
+          parts.push(`Frameworks: ${detectedStack.frameworks.join(', ')}`);
+        }
+        if (detectedStack.libraries && detectedStack.libraries.length > 0) {
+          parts.push(`Libraries: ${detectedStack.libraries.join(', ')}`);
+        }
+        if (detectedStack.css && detectedStack.css.length > 0) {
+          parts.push(`CSS: ${detectedStack.css.join(', ')}`);
+        }
+        if (detectedStack.devTools && detectedStack.devTools.length > 0) {
+          parts.push(`Dev Tools: ${detectedStack.devTools.join(', ')}`);
+        }
+
+        if (parts.length > 0) {
+          techStackMessage = '\n\n**Tech Stack Detected:**\n' + parts.map(p => `- ${p}`).join('\n');
+          if (detectedStack.spa) {
+            techStackMessage += '\n- Single Page Application (SPA) detected';
+          }
+        } else {
+          techStackMessage = '\n\n**Tech Stack:** None detected (static HTML or unknown frameworks)';
+        }
+      } else {
+        techStackMessage = '\n\n**Tech Stack:** Detection pending or page not yet loaded';
+      }
+
+      logAlways('[Background] Page.navigate completed with tech stack:', detectedStack);
+
+      // Return detailed response
+      return {
+        message: `Navigated to: ${targetUrl}${techStackMessage}`
+      };
 
     case 'Page.reload':
       // Reload page using Firefox tabs.reload
