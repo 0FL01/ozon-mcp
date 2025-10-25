@@ -458,8 +458,9 @@ function attachEventListeners() {
     }
     if (extensionConsoleButton) {
       extensionConsoleButton.addEventListener('click', () => {
-        // Open Firefox debugging page where user can click "Inspect" on this extension
-        browser.tabs.create({ url: 'about:debugging#/runtime/this-firefox', active: true });
+        // Firefox doesn't allow opening about:debugging from extensions
+        // Show instructions instead
+        alert('To access Extension Console:\n\n1. Type "about:debugging" in address bar\n2. Click "This Firefox"\n3. Find "Blueprint MCP for Firefox"\n4. Click "Inspect"');
       });
     }
     if (pageConsoleButton) {
@@ -467,12 +468,14 @@ function attachEventListeners() {
         // Get current tab and inject debugger statement to open DevTools
         const tabs = await browser.tabs.query({ active: true, currentWindow: true });
         if (tabs[0]) {
-          browser.tabs.executeScript(tabs[0].id, {
-            code: 'console.log("[Blueprint MCP] Opening DevTools..."); debugger;'
-          }).catch(() => {
-            // If injection fails, show keyboard shortcut
-            alert('Press F12 (or Cmd+Option+I on Mac) to open DevTools');
-          });
+          try {
+            await browser.tabs.executeScript(tabs[0].id, {
+              code: 'console.log("[Blueprint MCP] Opening DevTools..."); debugger;'
+            });
+          } catch (error) {
+            // If injection fails (restricted page), show keyboard shortcut
+            alert('Cannot inject debugger on this page.\n\nPress F12 (or Cmd+Option+I on Mac) to open DevTools manually.');
+          }
         }
       });
     }
