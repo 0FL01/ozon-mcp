@@ -16,7 +16,7 @@
  */
 
 import { RelayConnection, debugLog } from './relayConnection';
-import { getUserInfoFromStorage, getDefaultBrowserName, getMillisecondsUntilRefresh, decodeJWT } from './utils/jwt';
+import { getUserInfoFromStorage, getDefaultBrowserName, getMillisecondsUntilRefresh, decodeJWT, refreshAccessToken } from './utils/jwt';
 import * as logger from './utils/logger';
 
 type PageMessage = {
@@ -252,20 +252,64 @@ class TabShareExtension {
 
   private async _connectToRelay(selectorTabId: number, mcpRelayUrl: string): Promise<void> {
     try {
+      // Show connecting badge (yellow)
+      await this._updateConnectingBadge();
+
       const enabled = await this._isExtensionEnabled();
       if (!enabled) {
         throw new Error('Extension is disabled. Please enable it from the extension popup.');
       }
 
-      // Get browser name and access token from storage
-      const { browserName, accessToken } = await new Promise<{browserName: string; accessToken?: string}>((resolve) => {
-        chrome.storage.local.get(['browserName', 'accessToken'], (result) => {
+      // Get browser name, access token, and refresh token from storage
+      let { browserName, accessToken, refreshToken } = await new Promise<{browserName: string; accessToken?: string; refreshToken?: string}>((resolve) => {
+        chrome.storage.local.get(['browserName', 'accessToken', 'refreshToken'], (result) => {
           resolve({
             browserName: result.browserName || getDefaultBrowserName(),
-            accessToken: result.accessToken
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken
           });
         });
       });
+
+      // Check if token is expired
+      if (accessToken) {
+        const payload = decodeJWT(accessToken);
+        const now = Math.floor(Date.now() / 1000);
+        const isExpired = payload && payload.exp && payload.exp < now;
+
+        console.log('[Background] Token check - Expired:', isExpired, 'Expires:', payload?.exp, 'Now:', now);
+
+        // If token is expired, try to refresh it
+        if (isExpired && refreshToken) {
+          console.log('[Background] Access token expired, refreshing...');
+          try {
+            const newTokens = await refreshAccessToken(refreshToken);
+            // Store new tokens
+            await new Promise<void>((resolve) => {
+              chrome.storage.local.set({
+                accessToken: newTokens.access_token,
+                refreshToken: newTokens.refresh_token
+              }, () => resolve());
+            });
+            console.log('[Background] Token refreshed successfully');
+            // Use the new token
+            accessToken = newTokens.access_token;
+          } catch (error: any) {
+            console.error('[Background] Token refresh failed:', error.message);
+            // Clear invalid tokens
+            await new Promise<void>((resolve) => {
+              chrome.storage.local.remove(['accessToken', 'refreshToken', 'isPro'], () => resolve());
+            });
+            throw new Error('Authentication failed: Token expired and refresh failed. Please login again.');
+          }
+        } else if (isExpired) {
+          console.log('[Background] Token expired and no refresh token available');
+          await new Promise<void>((resolve) => {
+            chrome.storage.local.remove(['accessToken', 'refreshToken', 'isPro'], () => resolve());
+          });
+          throw new Error('Authentication failed: Token expired. Please login again.');
+        }
+      }
 
       const socket = new WebSocket(mcpRelayUrl);
       await new Promise<void>((resolve, reject) => {
@@ -282,10 +326,16 @@ class TabShareExtension {
       const connection = new RelayConnection(socket, browserName, accessToken);
       connection.onclose = () => {
         this._pendingTabSelection.delete(selectorTabId);
+        // Reset to normal icon when disconnected
+        this._setGlobalIcon('normal', 'Disconnected from MCP server');
       };
       connection.onStealthModeSet = (stealth: boolean) => {
         this._stealthMode = stealth;
         this._broadcastStatusChange();
+        // Update icon based on stealth mode
+        if (this._activeConnection) {
+          this._updateIconForAttachedTab();
+        }
       };
       connection.onProjectConnected = (projectName: string) => {
         this._projectName = projectName;
@@ -295,7 +345,12 @@ class TabShareExtension {
         this._handleConnectionStatus(status);
       };
       this._pendingTabSelection.set(selectorTabId, { connection });
+
+      // Update icon to show connected (will be replaced when tab is attached)
+      await this._setGlobalIcon('connected', 'Connected to MCP server');
     } catch (error: any) {
+      // Reset to normal icon on error
+      await this._setGlobalIcon('normal', 'Connection failed');
       throw new Error(`Failed to connect to MCP relay: ${error.message}`);
     }
   }
@@ -402,11 +457,13 @@ class TabShareExtension {
   }
 
   private async _updateBadgeForTab(tabId: number): Promise<void> {
-    // Use checkmark with different colors: blue for normal, black for stealth
-    const text = '✓';
-    const color = this._stealthMode ? '#000000' : '#1c75bc';
-    const title = this._stealthMode ? 'Connected (Stealth Mode)' : 'Connected to MCP client';
-    await this._updateBadge(tabId, { text, color, title });
+    await this._updateIconForAttachedTab();
+  }
+
+  private async _updateIconForAttachedTab(): Promise<void> {
+    const state = this._stealthMode ? 'attached-stealth' : 'attached';
+    const title = this._stealthMode ? 'Tab automated (Stealth Mode)' : 'Tab automated';
+    await this._setGlobalIcon(state, title);
   }
 
   private async _updateBadge(tabId: number, { text, color, title }: { text: string; color?: string, title?: string }): Promise<void> {
@@ -417,6 +474,70 @@ class TabShareExtension {
         await chrome.action.setBadgeBackgroundColor({ tabId, color });
     } catch (error: any) {
       // Ignore errors as the tab may be closed already.
+    }
+  }
+
+  private async _updateGlobalBadge({ text, color, title }: { text: string; color?: string, title?: string }): Promise<void> {
+    try {
+      await chrome.action.setBadgeText({ text });
+      if (color)
+        await chrome.action.setBadgeBackgroundColor({ color });
+      if (title)
+        await chrome.action.setTitle({ title });
+      console.log('[Background] Global badge updated:', text, color, title);
+    } catch (error: any) {
+      console.error('[Background] Failed to update global badge:', error);
+    }
+  }
+
+  private async _updateConnectingBadge(): Promise<void> {
+    await this._setGlobalIcon('connecting', 'Connecting to MCP server...');
+  }
+
+  private async _setGlobalIcon(state: string, title?: string): Promise<void> {
+    try {
+      const iconPaths = state === 'connecting'
+        ? {
+            '16': 'icons/icon-16-connecting.png',
+            '32': 'icons/icon-32-connecting.png',
+            '48': 'icons/icon-48-connecting.png',
+            '128': 'icons/icon-128-connecting.png'
+          }
+        : state === 'connected'
+        ? {
+            '16': 'icons/icon-16-connected.png',
+            '32': 'icons/icon-32-connected.png',
+            '48': 'icons/icon-48-connected.png',
+            '128': 'icons/icon-128-connected.png'
+          }
+        : state === 'attached'
+        ? {
+            '16': 'icons/icon-16-attached.png',
+            '32': 'icons/icon-32-attached.png',
+            '48': 'icons/icon-48-attached.png',
+            '128': 'icons/icon-128-attached.png'
+          }
+        : state === 'attached-stealth'
+        ? {
+            '16': 'icons/icon-16-attached-stealth.png',
+            '32': 'icons/icon-32-attached-stealth.png',
+            '48': 'icons/icon-48-attached-stealth.png',
+            '128': 'icons/icon-128-attached-stealth.png'
+          }
+        : {
+            '16': 'icons/icon-16.png',
+            '32': 'icons/icon-32.png',
+            '48': 'icons/icon-48.png',
+            '128': 'icons/icon-128.png'
+          };
+
+      await chrome.action.setIcon({ path: iconPaths });
+      if (title) {
+        await chrome.action.setTitle({ title });
+      }
+      console.log('[Background] Icon updated:', state);
+    } catch (error: any) {
+      console.error('[Background] Failed to update icon:', error);
     }
   }
 

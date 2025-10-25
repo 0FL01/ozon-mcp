@@ -72,6 +72,34 @@ async function getUserInfoFromStorage() {
   };
 }
 
+// Refresh access token using refresh token
+async function refreshAccessToken(refreshToken) {
+  const API_HOST = 'https://mcp-for-chrome.railsblueprint.com';
+
+  logAlways('[Background] Calling refresh token API...');
+  const response = await fetch(`${API_HOST}/api/v1/oauth/refresh`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      refresh_token: refreshToken
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Token refresh failed: ${response.status} ${error}`);
+  }
+
+  const data = await response.json();
+  if (!data.access_token || !data.refresh_token) {
+    throw new Error('Invalid refresh response: missing tokens');
+  }
+
+  return data;
+}
+
 // Network request tracking using webRequest API
 browser.webRequest.onBeforeRequest.addListener(
   (details) => {
@@ -226,6 +254,9 @@ async function setupDialogOverrides(tabId, accept = true, promptText = '') {
 // Auto-connect to MCP server on startup
 async function autoConnect() {
   try {
+    // Show connecting badge (yellow)
+    await updateConnectingBadge();
+
     // Check if user has PRO account with connection URL from JWT
     const userInfo = await getUserInfoFromStorage();
     let url;
@@ -255,6 +286,9 @@ async function autoConnect() {
     socket.onopen = () => {
       log('[Background] Connected');
       isConnected = true;
+
+      // Update icon to show connected (will be replaced when tab is attached)
+      setGlobalIcon('connected', 'Connected to MCP server');
 
       // In PRO mode (relay), don't send handshake - wait for authenticate request
       // In Free mode, send handshake
@@ -372,12 +406,17 @@ async function autoConnect() {
       log('[Background] Disconnected from MCP server');
       isConnected = false;
 
+      // Reset to normal icon when disconnected
+      setGlobalIcon('normal', 'Disconnected from MCP server');
+
       // Retry connection after 5 seconds
       setTimeout(autoConnect, 5000);
     };
 
   } catch (error) {
     logAlways('[Background] Connection error:', error);
+    // Reset to normal icon on error
+    setGlobalIcon('normal', 'Connection failed');
     setTimeout(autoConnect, 5000);
   }
 }
@@ -394,6 +433,37 @@ async function handleCommand(message) {
 
       if (!result.accessToken) {
         throw new Error('No authentication tokens found. Please login via MCP client first.');
+      }
+
+      // Check if token is expired
+      const payload = decodeJWT(result.accessToken);
+      const now = Math.floor(Date.now() / 1000);
+      const isExpired = payload && payload.exp && payload.exp < now;
+
+      logAlways('[Background] Token check - Expired:', isExpired, 'Expires:', payload?.exp, 'Now:', now);
+
+      // If token is expired, try to refresh it
+      if (isExpired && result.refreshToken) {
+        logAlways('[Background] Access token expired, refreshing...');
+        try {
+          const newTokens = await refreshAccessToken(result.refreshToken);
+          // Store new tokens
+          await browser.storage.local.set({
+            accessToken: newTokens.access_token,
+            refreshToken: newTokens.refresh_token
+          });
+          logAlways('[Background] Token refreshed successfully');
+          result.accessToken = newTokens.access_token;
+        } catch (error) {
+          logAlways('[Background] Token refresh failed:', error.message);
+          // Clear invalid tokens
+          await browser.storage.local.remove(['accessToken', 'refreshToken', 'isPro']);
+          throw new Error('Authentication failed: Token expired and refresh failed. Please login again.');
+        }
+      } else if (isExpired) {
+        logAlways('[Background] Token expired and no refresh token available');
+        await browser.storage.local.remove(['accessToken', 'refreshToken', 'isPro']);
+        throw new Error('Authentication failed: Token expired. Please login again.');
       }
 
       const browserName = result.browserName || 'Firefox';
@@ -1194,14 +1264,11 @@ async function injectConsoleCapture(tabId) {
   }
 }
 
-// Badge update functions (matching Chrome implementation)
+// Update icon based on attached tab state
 async function updateBadgeForTab(tabId) {
-  // Firefox has 4-character limit for badge text, use simple checkmark
-  // Note: Firefox may not render Unicode well in badges, might show as box
-  const text = '✓';
-  const color = stealthMode ? '#666666' : '#1c75bc'; // Gray for stealth, blue for normal
-  const title = stealthMode ? 'Connected (Stealth Mode)' : 'Connected to MCP client';
-  await updateBadge(tabId, { text, color, title });
+  const state = stealthMode ? 'attached-stealth' : 'attached';
+  const title = stealthMode ? 'Tab automated (Stealth Mode)' : 'Tab automated';
+  await setGlobalIcon(state, title);
 }
 
 async function updateBadge(tabId, { text, color, title }) {
@@ -1255,29 +1322,81 @@ async function clearBadge(tabId) {
   await updateBadge(tabId, { text: '' });
 }
 
-// Listen for tab activation to update badge based on current tab
+// Update global badge (for connecting/connected states)
+async function updateGlobalBadge({ text, color, title }) {
+  try {
+    // Set badge text globally
+    await browser.browserAction.setBadgeText({ text });
+
+    // Set badge color if provided
+    if (color) {
+      await browser.browserAction.setBadgeBackgroundColor({ color });
+    }
+
+    // Set title if provided
+    if (title) {
+      await browser.browserAction.setTitle({ title });
+    }
+
+    logAlways('[Background] Global badge updated:', text, color, title);
+  } catch (error) {
+    logAlways('[Background] Failed to update global badge:', error.message);
+  }
+}
+
+// Show connecting icon (yellow dot)
+async function updateConnectingBadge() {
+  await setGlobalIcon('connecting', 'Connecting to MCP server...');
+}
+
+// Set global icon based on state
+async function setGlobalIcon(state, title) {
+  try {
+    const iconPath = state === 'connecting'
+      ? 'icons/icon-48-connecting.png'
+      : state === 'connected'
+      ? 'icons/icon-48-connected.png'
+      : state === 'attached'
+      ? 'icons/icon-48-attached.png'
+      : state === 'attached-stealth'
+      ? 'icons/icon-48-attached-stealth.png'
+      : 'icons/icon-48.png';
+
+    await browser.browserAction.setIcon({ path: iconPath });
+    await browser.browserAction.setTitle({ title: title || 'Blueprint MCP' });
+    logAlways('[Background] Icon updated:', state, iconPath);
+  } catch (error) {
+    logAlways('[Background] Failed to update icon:', error.message);
+  }
+}
+
+// Listen for tab activation to update icon based on current tab
 browser.tabs.onActivated.addListener(async (activeInfo) => {
   log('[Background] Tab activated:', activeInfo.tabId);
 
   // Check if the activated tab is the attached tab
   if (activeInfo.tabId === attachedTabId) {
-    // Show badge for attached tab
+    // Show attached icon
     await updateBadgeForTab(activeInfo.tabId);
-    log('[Background] Badge shown for attached tab');
-  } else {
-    // Clear badge for non-attached tabs
-    await clearBadge(activeInfo.tabId);
-    log('[Background] Badge cleared for non-attached tab');
+    log('[Background] Icon updated for attached tab');
+  } else if (isConnected) {
+    // Show connected icon (no tab attached)
+    await setGlobalIcon('connected', 'Connected to MCP server');
+    log('[Background] Icon updated for non-attached tab');
   }
 });
 
-// Listen for tab close to clear badge if attached tab is closed
+// Listen for tab close to reset icon if attached tab is closed
 browser.tabs.onRemoved.addListener(async (tabId) => {
   if (tabId === attachedTabId) {
-    log('[Background] Attached tab closed, clearing badge');
-    await clearBadge(tabId);
+    log('[Background] Attached tab closed, resetting icon');
     attachedTabId = null;
     attachedTabInfo = null;
+
+    // Show connected icon (no tab attached)
+    if (isConnected) {
+      await setGlobalIcon('connected', 'Connected to MCP server');
+    }
   }
 });
 

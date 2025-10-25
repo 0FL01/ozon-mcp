@@ -171,7 +171,8 @@ function detectTechStack(): TechStack {
     if (document.querySelector('.button.is-primary') || document.querySelector('.card.is-fullwidth')) {
       stack.css.push('Bulma');
     }
-    if (document.querySelector('[class*="ant-"]')) {
+    // Ant Design - check for actual component classes (avoid false positives like "assistant")
+    if (document.querySelector('[class^="ant-"], [class*=" ant-"]')) {
       stack.css.push('Ant Design');
     }
 

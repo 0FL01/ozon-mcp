@@ -329,7 +329,7 @@ const Popup: React.FC = () => {
             <div>
               <p className="pro-text">✓ PRO Account Active</p>
               {userEmail && <p className="pro-email">{userEmail}</p>}
-              {connectionStatus && (
+              {!connecting && connectionStatus && (
                 <div className="connection-status">
                   <p className="connection-limit">
                     Connections: {connectionStatus.connections_used}/{connectionStatus.max_connections}

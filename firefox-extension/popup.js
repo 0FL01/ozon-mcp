@@ -341,7 +341,7 @@ function renderMain() {
             <div>
               <p class="pro-text">✓ PRO Account Active</p>
               ${state.userEmail ? `<p class="pro-email">${state.userEmail}</p>` : ''}
-              ${state.connectionStatus ? `
+              ${!state.connecting && state.connectionStatus ? `
                 <div class="connection-status">
                   <p class="connection-limit">
                     Connections: ${state.connectionStatus.connections_used}/${state.connectionStatus.max_connections}

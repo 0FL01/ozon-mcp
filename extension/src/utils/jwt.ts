@@ -107,6 +107,36 @@ export function getMillisecondsUntilRefresh(token: string, minutesBeforeExpiry: 
 }
 
 /**
+ * Refresh access token using refresh token
+ */
+export async function refreshAccessToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string }> {
+  const API_HOST = 'https://mcp-for-chrome.railsblueprint.com';
+
+  console.log('[JWT] Calling refresh token API...');
+  const response = await fetch(`${API_HOST}/api/v1/oauth/refresh`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      refresh_token: refreshToken
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Token refresh failed: ${response.status} ${error}`);
+  }
+
+  const data = await response.json();
+  if (!data.access_token || !data.refresh_token) {
+    throw new Error('Invalid refresh response: missing tokens');
+  }
+
+  return data;
+}
+
+/**
  * Get default browser name with version
  */
 export function getDefaultBrowserName(): string {
