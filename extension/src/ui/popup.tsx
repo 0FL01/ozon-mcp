@@ -107,6 +107,10 @@ const Popup: React.FC = () => {
     // Listen for storage changes (e.g., login completion)
     const storageListener = async (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
       if (areaName === 'local') {
+        // Update enabled state when it changes
+        if (changes.extensionEnabled) {
+          setEnabled(changes.extensionEnabled.newValue !== false);
+        }
         if (changes.isPro) {
           setIsPro(changes.isPro.newValue === true);
         }

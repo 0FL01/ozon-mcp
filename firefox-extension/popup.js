@@ -512,6 +512,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Listen for storage changes
     browser.storage.onChanged.addListener(async (changes, areaName) => {
       if (areaName === 'local') {
+        // Update enabled state when it changes
+        if (changes.extensionEnabled) {
+          state.enabled = changes.extensionEnabled.newValue !== false;
+          render();
+        }
         if (changes.isPro) {
           state.isPro = changes.isPro.newValue === true;
           render();
