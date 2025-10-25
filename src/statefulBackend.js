@@ -418,9 +418,11 @@ class StatefulBackend {
         }
 
         // Update cached tab info with fresh data from browser
-        if (this._attachedTab && this._attachedTab.id === tabInfo.id) {
+        // Accept updates even if tab ID changes (can happen after navigation or tab recreation)
+        if (this._attachedTab) {
           this._attachedTab = {
             ...this._attachedTab,
+            id: tabInfo.id,  // Update ID in case it changed
             title: tabInfo.title,
             url: tabInfo.url,
             index: tabInfo.index,
@@ -589,9 +591,11 @@ class StatefulBackend {
           }
 
           // Update cached tab info with fresh data from browser
-          if (this._attachedTab && this._attachedTab.id === tabInfo.id) {
+          // Accept updates even if tab ID changes (can happen after navigation or tab recreation)
+          if (this._attachedTab) {
             this._attachedTab = {
               ...this._attachedTab,
+              id: tabInfo.id,  // Update ID in case it changed
               title: tabInfo.title,
               url: tabInfo.url,
               index: tabInfo.index,
@@ -901,9 +905,11 @@ class StatefulBackend {
         }
 
         // Update cached tab info with fresh data from browser
-        if (this._attachedTab && this._attachedTab.id === tabInfo.id) {
+        // Accept updates even if tab ID changes (can happen after navigation or tab recreation)
+        if (this._attachedTab) {
           this._attachedTab = {
             ...this._attachedTab,
+            id: tabInfo.id,  // Update ID in case it changed
             title: tabInfo.title,
             url: tabInfo.url,
             index: tabInfo.index,
