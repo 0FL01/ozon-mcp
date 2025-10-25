@@ -42,6 +42,7 @@ let pendingDialogResponse = null; // Stores response for next dialog (accept, te
 let consoleMessages = []; // Stores console messages from the page
 let networkRequests = []; // Stores network requests for tracking
 let requestIdCounter = 0; // Counter for request IDs
+let techStackInfo = {}; // Stores detected tech stack per tab: { tabId: { frameworks, libraries, css, devTools, spa, autoReload } }
 
 // JWT Decoding utility (without validation - only for extracting claims)
 function decodeJWT(token) {
@@ -498,7 +499,8 @@ async function handleCreateTab(params) {
     id: tab.id,
     title: tab.title,
     url: tab.url,
-    index: tabIndex >= 0 ? tabIndex : undefined
+    index: tabIndex >= 0 ? tabIndex : undefined,
+    techStack: techStackInfo[tab.id] || null
   };
 
   // Update badge for the new tab (badge color reflects stealth mode)
@@ -553,7 +555,8 @@ async function handleSelectTab(params) {
     id: selectedTab.id,
     title: selectedTab.title,
     url: selectedTab.url,
-    index: tabIndex  // Use the tabIndex parameter
+    index: tabIndex,  // Use the tabIndex parameter
+    techStack: techStackInfo[selectedTab.id] || null
   };
 
   // Update badge for the new tab (badge color reflects stealth mode)
@@ -768,7 +771,8 @@ async function handleCDPCommand(params) {
         id: navigatedTab.id,
         title: navigatedTab.title,
         url: navigatedTab.url,
-        index: previousIndex  // Preserve index from when tab was attached
+        index: previousIndex,  // Preserve index from when tab was attached
+        techStack: techStackInfo[navigatedTab.id] || null  // Tech stack will be updated by content script after navigation
       };
 
       // Return currentTab so server can update its cached state
@@ -1001,7 +1005,8 @@ async function handleOpenTestPage() {
   attachedTabInfo = {
     id: tab.id,
     title: 'Browser Interaction Test Page',
-    url: testPageUrl
+    url: testPageUrl,
+    techStack: techStackInfo[tab.id] || null
   };
 
   // Update badge for the test page tab
@@ -1269,6 +1274,18 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Keep only last 100 messages
     if (consoleMessages.length > 100) {
       consoleMessages.shift();
+    }
+  } else if (message.type === 'techStackDetected') {
+    // Store tech stack info for the tab
+    if (sender.tab && sender.tab.id) {
+      techStackInfo[sender.tab.id] = message.stack;
+      log('[Background] Tech stack detected for tab', sender.tab.id, ':', message.stack);
+
+      // If this is the attached tab, update attachedTabInfo
+      if (sender.tab.id === attachedTabId && attachedTabInfo) {
+        attachedTabInfo.techStack = message.stack;
+        log('[Background] Updated attached tab tech stack');
+      }
     }
   }
 });

@@ -39,6 +39,17 @@ type PageMessage = {
   refreshToken: string;
 } | {
   type: 'focusTab';
+} | {
+  type: 'techStackDetected';
+  stack: {
+    frameworks: string[];
+    libraries: string[];
+    css: string[];
+    devTools: string[];
+    spa: boolean;
+    autoReload: boolean;
+  };
+  url: string;
 };
 
 class TabShareExtension {
@@ -53,6 +64,7 @@ class TabShareExtension {
   private _logs: Array<{ timestamp: number; message: string }> = [];
   private _maxLogs = 100;
   private _tokenRefreshTimer: number | null = null;
+  private _techStackInfo: Record<number, any> = {}; // Stores detected tech stack per tab
 
   constructor() {
     logger.debug('Service worker starting, registering listeners...');
@@ -223,6 +235,17 @@ class TabShareExtension {
           sendResponse({ success: false, error: 'No tab ID' });
         }
         return true;
+      case 'techStackDetected':
+        if (sender.tab?.id) {
+          this._techStackInfo[sender.tab.id] = message.stack;
+          logger.debug('[Background] Tech stack detected for tab', sender.tab.id, ':', message.stack);
+
+          // If this is the connected tab, notify RelayConnection
+          if (sender.tab.id === this._connectedTabId && this._activeConnection) {
+            this._activeConnection.updateTechStack(message.stack);
+          }
+        }
+        return false;
     }
     return false;
   }
@@ -317,6 +340,11 @@ class TabShareExtension {
         void this._setConnectedTabId(tabId);
         void this._updateGlobalIcon(true);
         this._broadcastStatusChange();
+
+        // If we have tech stack info for this tab, pass it to the connection
+        if (this._techStackInfo[tabId]) {
+          this._activeConnection?.updateTechStack(this._techStackInfo[tabId]);
+        }
       };
 
       // Lazy connection mode: resolve the tab promise without setting tabId

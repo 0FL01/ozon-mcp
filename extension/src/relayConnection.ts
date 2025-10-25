@@ -106,6 +106,7 @@ export class RelayConnection {
   private _mainContextId: number | null = null; // Main page execution context
   private _extensionContexts: Map<string, Set<number>> = new Map(); // extensionId → Set of contextIds
   private _cleanupInterval?: ReturnType<typeof setInterval>; // Periodic cleanup for stale tab data
+  private _techStack: any = null; // Detected tech stack for current tab
 
   onclose?: () => void;
   onStealthModeSet?: (stealth: boolean) => void;
@@ -154,6 +155,12 @@ export class RelayConnection {
     }
     // Always resolve the promise, even in lazy mode without tabId
     this._tabPromiseResolve();
+  }
+
+  // Update tech stack info for current tab
+  updateTechStack(stack: any): void {
+    this._techStack = stack;
+    debugLog('[RelayConnection] Tech stack updated:', stack);
   }
 
   // Detach from current tab without closing WebSocket connection
@@ -794,9 +801,10 @@ export class RelayConnection {
             id: tab.id,
             title: tab.title,
             url: tab.url,
-            index: tab.index
+            index: tab.index,
+            techStack: this._techStack || null
           };
-          debugLog('Added current tab info to result:', tab.url);
+          debugLog('Added current tab info to result:', tab.url, 'techStack:', this._techStack);
         } catch (error: any) {
           debugLog('Failed to get current tab info:', error);
           // Tab might have been closed, set to null
