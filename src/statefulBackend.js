@@ -122,6 +122,24 @@ class StatefulBackend {
         const url = this._attachedTab.url || 'about:blank';
         const shortUrl = url.length > 50 ? url.substring(0, 47) + '...' : url;
         parts.push(`📄 Tab ${this._attachedTab.index}: ${shortUrl}`);
+
+        // Show tech stack if available (compact format)
+        if (this._attachedTab.techStack) {
+          const tech = this._attachedTab.techStack;
+          const techParts = [];
+          if (tech.frameworks && tech.frameworks.length > 0) {
+            techParts.push(tech.frameworks.join(', '));
+          }
+          if (tech.libraries && tech.libraries.length > 0) {
+            techParts.push(tech.libraries.join(', '));
+          }
+          if (tech.css && tech.css.length > 0) {
+            techParts.push(tech.css.join(', '));
+          }
+          if (techParts.length > 0) {
+            parts.push(`🔧 ${techParts.join(' + ')}`);
+          }
+        }
       } else {
         parts.push(`⚠️ No tab attached`);
       }
@@ -405,7 +423,8 @@ class StatefulBackend {
             ...this._attachedTab,
             title: tabInfo.title,
             url: tabInfo.url,
-            index: tabInfo.index
+            index: tabInfo.index,
+            techStack: tabInfo.techStack || null
           };
           debugLog('[StatefulBackend] Updated cached tab info:', this._attachedTab);
         }
@@ -575,7 +594,8 @@ class StatefulBackend {
               ...this._attachedTab,
               title: tabInfo.title,
               url: tabInfo.url,
-              index: tabInfo.index
+              index: tabInfo.index,
+              techStack: tabInfo.techStack || null
             };
             console.error('[StatefulBackend] Updated cached tab info:', this._attachedTab);
           }
@@ -886,7 +906,8 @@ class StatefulBackend {
             ...this._attachedTab,
             title: tabInfo.title,
             url: tabInfo.url,
-            index: tabInfo.index
+            index: tabInfo.index,
+            techStack: tabInfo.techStack || null
           };
           debugLog('[StatefulBackend] Updated cached tab info:', this._attachedTab);
         }
