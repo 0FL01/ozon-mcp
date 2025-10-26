@@ -1509,7 +1509,7 @@ browser.storage.onChanged.addListener((changes, areaName) => {
         stealthMode = null;
         projectName = null;
         setGlobalIcon('normal', 'Blueprint MCP');
-        broadcastStatusChange();
+        browser.runtime.sendMessage({ type: 'statusChanged' }).catch(() => {});
       }
     }
 

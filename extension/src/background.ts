@@ -75,7 +75,7 @@ class TabShareExtension {
     chrome.runtime.onMessage.addListener(this._onMessage.bind(this));
     chrome.storage.onChanged.addListener(this._onStorageChanged.bind(this));
 
-    // Handle reconnect alarm (survives service worker suspension)
+    // Handle reconnect and keepalive alarms (survives service worker suspension)
     if (chrome.alarms) {
       logger.debug('Registering chrome.alarms.onAlarm listener...');
       chrome.alarms.onAlarm.addListener((alarm) => {
@@ -83,6 +83,10 @@ class TabShareExtension {
         if (alarm.name === 'reconnect') {
           logger.log('Reconnect alarm fired - attempting to reconnect...');
           this._autoConnect();
+        } else if (alarm.name === 'keepalive') {
+          // Keepalive alarm to prevent service worker suspension
+          // Just logging keeps the service worker active
+          logger.debug('Keepalive alarm fired - service worker kept alive');
         }
       });
     } else {
@@ -161,6 +165,13 @@ class TabShareExtension {
       this._autoConnectAttempts = 0; // Reset counter on success
       await this._updateGlobalIcon(true);
       this._broadcastStatusChange();
+
+      // Start keepalive alarm to prevent service worker suspension (every 20 seconds)
+      if (chrome.alarms) {
+        chrome.alarms.create('keepalive', { periodInMinutes: 20 / 60 });
+        logger.debug('Keepalive alarm started');
+      }
+
       logger.log('Auto-connect SUCCESSFUL');
     } catch (error: any) {
       this._autoConnecting = false;
@@ -510,37 +521,37 @@ class TabShareExtension {
     try {
       const iconPaths = state === 'connecting'
         ? {
-            '16': 'icons/icon-16-connecting.png',
-            '32': 'icons/icon-32-connecting.png',
-            '48': 'icons/icon-48-connecting.png',
-            '128': 'icons/icon-128-connecting.png'
+            '16': '/icons/icon-16-connecting.png',
+            '32': '/icons/icon-32-connecting.png',
+            '48': '/icons/icon-48-connecting.png',
+            '128': '/icons/icon-128-connecting.png'
           }
         : state === 'connected'
         ? {
-            '16': 'icons/icon-16-connected.png',
-            '32': 'icons/icon-32-connected.png',
-            '48': 'icons/icon-48-connected.png',
-            '128': 'icons/icon-128-connected.png'
+            '16': '/icons/icon-16-connected.png',
+            '32': '/icons/icon-32-connected.png',
+            '48': '/icons/icon-48-connected.png',
+            '128': '/icons/icon-128-connected.png'
           }
         : state === 'attached'
         ? {
-            '16': 'icons/icon-16-attached.png',
-            '32': 'icons/icon-32-attached.png',
-            '48': 'icons/icon-48-attached.png',
-            '128': 'icons/icon-128-attached.png'
+            '16': '/icons/icon-16-attached.png',
+            '32': '/icons/icon-32-attached.png',
+            '48': '/icons/icon-48-attached.png',
+            '128': '/icons/icon-128-attached.png'
           }
         : state === 'attached-stealth'
         ? {
-            '16': 'icons/icon-16-attached-stealth.png',
-            '32': 'icons/icon-32-attached-stealth.png',
-            '48': 'icons/icon-48-attached-stealth.png',
-            '128': 'icons/icon-128-attached-stealth.png'
+            '16': '/icons/icon-16-attached-stealth.png',
+            '32': '/icons/icon-32-attached-stealth.png',
+            '48': '/icons/icon-48-attached-stealth.png',
+            '128': '/icons/icon-128-attached-stealth.png'
           }
         : {
-            '16': 'icons/icon-16.png',
-            '32': 'icons/icon-32.png',
-            '48': 'icons/icon-48.png',
-            '128': 'icons/icon-128.png'
+            '16': '/icons/icon-16.png',
+            '32': '/icons/icon-32.png',
+            '48': '/icons/icon-48.png',
+            '128': '/icons/icon-128.png'
           };
 
       await chrome.action.setIcon({ path: iconPaths });
@@ -630,6 +641,15 @@ class TabShareExtension {
     await this._setConnectedTabId(null);
     await this._updateGlobalIcon(false);
     this._broadcastStatusChange();
+
+    // Stop keepalive alarm when disconnected
+    if (chrome.alarms) {
+      chrome.alarms.clear('keepalive', (wasCleared) => {
+        if (wasCleared) {
+          logger.debug('Keepalive alarm stopped');
+        }
+      });
+    }
   }
 
   private _handleConnectionStatus(status: { max_connections: number; connections_used: number; connections_to_this_browser: number }): void {

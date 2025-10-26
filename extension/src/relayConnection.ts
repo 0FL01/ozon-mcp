@@ -107,6 +107,8 @@ export class RelayConnection {
   private _extensionContexts: Map<string, Set<number>> = new Map(); // extensionId → Set of contextIds
   private _cleanupInterval?: ReturnType<typeof setInterval>; // Periodic cleanup for stale tab data
   private _techStack: any = null; // Detected tech stack for current tab
+  private _lastMessageTime: number = Date.now(); // Track last message received (for connection health monitoring)
+  private _healthCheckInterval?: ReturnType<typeof setInterval>; // Periodic connection health check
 
   onclose?: () => void;
   onStealthModeSet?: (stealth: boolean) => void;
@@ -141,6 +143,18 @@ export class RelayConnection {
     this._cleanupInterval = setInterval(() => {
       this.cleanupStaleTabData().catch(err => debugLog('Cleanup error:', err));
     }, 5 * 60 * 1000); // 5 minutes
+
+    // Start connection health monitoring (every 30 seconds)
+    // Note: WebSocket ping/pong is automatic at protocol level - browser handles it
+    // This just logs connection health to help debug issues
+    this._healthCheckInterval = setInterval(() => {
+      const secondsSinceLastMessage = Math.floor((Date.now() - this._lastMessageTime) / 1000);
+      debugLog(`[Connection Health] Last message received ${secondsSinceLastMessage}s ago, WebSocket state: ${this._ws.readyState}`);
+
+      if (secondsSinceLastMessage > 90) {
+        console.warn(`[Extension] No messages received for ${secondsSinceLastMessage}s - connection may be stale`);
+      }
+    }, 30 * 1000); // 30 seconds
 
     // In proxy mode: Extension is PASSIVE - wait for proxy to send authenticate request
     // In direct mode: This still works but is legacy (will be replaced by JSON-RPC)
@@ -439,6 +453,12 @@ export class RelayConnection {
       this._cleanupInterval = undefined;
     }
 
+    // Stop connection health monitoring
+    if (this._healthCheckInterval) {
+      clearInterval(this._healthCheckInterval);
+      this._healthCheckInterval = undefined;
+    }
+
     chrome.debugger.onEvent.removeListener(this._eventListener);
     chrome.debugger.onDetach.removeListener(this._detachListener);
     chrome.debugger.detach(this._debuggee).catch(() => {});
@@ -715,6 +735,8 @@ export class RelayConnection {
   }
 
   private async _onMessageAsync(event: MessageEvent): Promise<void> {
+    // Update last message time (proves WebSocket ping/pong is working)
+    this._lastMessageTime = Date.now();
     debugLog('_onMessageAsync called, data length:', event.data?.length);
 
     let message: any;

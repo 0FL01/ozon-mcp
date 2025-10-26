@@ -172,7 +172,7 @@ class UnifiedBackend {
       // Interaction
       {
         name: 'browser_interact',
-        description: 'Perform one or more browser interactions in sequence (click, type, press keys, hover, scroll, wait). Scroll actions report success/failure and detect all scrollable areas on the page.',
+        description: 'Perform one or more browser interactions in sequence (click, type, press keys, hover, scroll, wait). When clicking on a <select> element, automatically detects it and returns all available options with their selector. Use select_option action to choose an option by value or text. Scroll actions report success/failure and detect all scrollable areas on the page.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -190,7 +190,7 @@ class UnifiedBackend {
                   selector: { type: 'string', description: 'CSS selector (for click, type, clear, hover, scroll_to, scroll_by, scroll_into_view, select_option, file_upload). For scroll_to/scroll_by: scrolls the element instead of the window' },
                   text: { type: 'string', description: 'Text to type (for type action)' },
                   key: { type: 'string', description: 'Key to press (for press_key action)' },
-                  value: { type: 'string', description: 'Option value to select (for select_option action)' },
+                  value: { type: 'string', description: 'Option value or text to select (for select_option action). Matches by value first, then by text if value not found. Case-insensitive for text matching.' },
                   files: {
                     type: 'array',
                     items: { type: 'string' },
@@ -1241,6 +1241,51 @@ class UnifiedBackend {
             // Process selector (preprocess + validate)
             const processedSelector = this._processSelector(action.selector);
 
+            // Check if this is a select element BEFORE clicking
+            const selectorExprPreCheck = this._getSelectorExpression(processedSelector);
+            const selectPreCheck = await this._transport.sendCommand('forwardCDPCommand', {
+              method: 'Runtime.evaluate',
+              params: {
+                expression: `
+                  (() => {
+                    const el = ${selectorExprPreCheck};
+                    if (!el || el.tagName !== 'SELECT') return null;
+
+                    const options = Array.from(el.options).map((opt, idx) => ({
+                      index: idx,
+                      value: opt.value,
+                      text: opt.text,
+                      selected: opt.selected
+                    }));
+
+                    return {
+                      selector: '${action.selector}',
+                      currentValue: el.value,
+                      options: options
+                    };
+                  })()
+                `,
+                returnByValue: true
+              }
+            });
+
+            // If it's a select, return options immediately without clicking
+            const selectInfo = selectPreCheck.result?.value;
+            if (selectInfo) {
+              // Find current option by value (more reliable than selected property)
+              const currentOption = selectInfo.options.find(o => o.value === selectInfo.currentValue);
+              result = `Clicked select box: ${action.selector}\n\n`;
+              result += `Current selection: ${currentOption ? `"${currentOption.text}" (value="${currentOption.value}")` : 'none'}\n\n`;
+              result += `Available options:\n`;
+              selectInfo.options.forEach(opt => {
+                const selected = opt.value === selectInfo.currentValue ? ' [SELECTED]' : '';
+                result += `  ${opt.index}. "${opt.text}" (value="${opt.value}")${selected}\n`;
+              });
+              result += `\n💡 To select an option, use select_option action with this selector and the desired value or text.`;
+              break;
+            }
+
+            // Not a select - proceed with normal click
             // Get element location
             const elemResult = await this._findElement(processedSelector);
 
@@ -1366,6 +1411,7 @@ class UnifiedBackend {
               }
             });
 
+            // Normal click result (select elements are handled before clicking)
             result = `Clicked ${action.selector}`;
             if (warning) {
               result += ` ⚠️ ${warning}`;
@@ -1948,35 +1994,6 @@ class UnifiedBackend {
             break;
           }
 
-          case 'select_option': {
-            // Process selector (preprocess + validate)
-            const processedSelector = this._processSelector(action.selector);
-            const selectorExpr = this._getSelectorExpression(processedSelector);
-
-            // Select option in dropdown
-            const selectResult = await this._transport.sendCommand('forwardCDPCommand', {
-              method: 'Runtime.evaluate',
-              params: {
-                expression: `
-                  (() => {
-                    const select = ${selectorExpr};
-                    if (!select) return { error: 'Select element not found' };
-                    select.value = ${JSON.stringify(action.value)};
-                    select.dispatchEvent(new Event('change', { bubbles: true }));
-                    return { success: true };
-                  })()
-                `,
-                returnByValue: true
-              }
-            });
-
-            if (selectResult.result?.value?.error) {
-              throw new Error(`${selectResult.result.value.error}: ${action.selector}`);
-            }
-
-            result = `Selected option "${action.value}" in ${action.selector}`;
-            break;
-          }
 
           case 'file_upload': {
             // Process selector (preprocess + validate)
@@ -2026,6 +2043,81 @@ class UnifiedBackend {
             });
 
             result = `Uploaded ${files.length} file(s) to ${action.selector}`;
+            break;
+          }
+
+          case 'select_option': {
+            // Process selector (preprocess + validate)
+            const processedSelector = this._processSelector(action.selector);
+            const selectorExpr = this._getSelectorExpression(processedSelector);
+
+            // Select option by value or text
+            const value = action.value;
+            if (!value && value !== '') {
+              throw new Error('select_option requires a "value" parameter (option value or text to select)');
+            }
+
+            const selectResult = await this._transport.sendCommand('forwardCDPCommand', {
+              method: 'Runtime.evaluate',
+              params: {
+                expression: `
+                  (() => {
+                    const select = ${selectorExpr};
+                    if (!select) throw new Error('Select element not found');
+                    if (select.tagName !== 'SELECT') throw new Error('Element is not a <select>');
+
+                    const value = ${JSON.stringify(value)};
+                    let optionToSelect = null;
+
+                    // First try to match by value
+                    optionToSelect = Array.from(select.options).find(opt => opt.value === value);
+
+                    // If not found, try to match by text
+                    if (!optionToSelect) {
+                      optionToSelect = Array.from(select.options).find(opt =>
+                        opt.text.trim() === value || opt.text.trim().toLowerCase() === value.toLowerCase()
+                      );
+                    }
+
+                    if (!optionToSelect) {
+                      const availableOptions = Array.from(select.options).map(opt =>
+                        \`"\${opt.text}" (value="\${opt.value}")\`
+                      ).join(', ');
+                      throw new Error(\`Option not found: "\${value}". Available options: \${availableOptions}\`);
+                    }
+
+                    // Focus the select first (React often needs this)
+                    select.focus();
+
+                    // Set the selected option using native setter to trigger React
+                    const nativeSelectSetter = Object.getOwnPropertyDescriptor(
+                      window.HTMLSelectElement.prototype,
+                      'value'
+                    ).set;
+                    nativeSelectSetter.call(select, optionToSelect.value);
+
+                    // Trigger comprehensive events for React/Vue compatibility
+                    select.dispatchEvent(new Event('input', { bubbles: true }));
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    select.dispatchEvent(new Event('blur', { bubbles: true }));
+
+                    return {
+                      selectedText: optionToSelect.text,
+                      selectedValue: optionToSelect.value,
+                      selectedIndex: optionToSelect.index
+                    };
+                  })()
+                `,
+                returnByValue: true
+              }
+            });
+
+            if (selectResult.exceptionDetails) {
+              throw new Error(selectResult.exceptionDetails.exception.description || 'Failed to select option');
+            }
+
+            const selectedInfo = selectResult.result?.value;
+            result = `Selected option "${selectedInfo.selectedText}" (value="${selectedInfo.selectedValue}") in ${action.selector}`;
             break;
           }
 
