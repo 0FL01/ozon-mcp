@@ -1,3 +1,10 @@
+# v1.6.1 (2025-10-26)
+
+## Changes
+
+
+
+
 # v1.6.0 (2025-10-26)
 
 ## Changes
@@ -125,5 +132,3 @@
 - Remove dotenv dependency for clean MCP protocol output
 - Fix production authentication and debug mode
 - v1.0.0 - Open source release
-
-
