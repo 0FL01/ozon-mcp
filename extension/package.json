@@ -1,0 +1,35 @@
+{
+  "name": "@blueprint/mcp-extension",
+  "version": "1.0.0",
+  "description": "Blueprint MCP for Chrome",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/railsblueprint/chrome-mcp.git"
+  },
+  "homepage": "https://mcp-for-chrome.railsblueprint.com",
+  "engines": {
+    "node": ">=18"
+  },
+  "author": {
+    "name": "Microsoft Corporation"
+  },
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "tsc --project . && tsc --project tsconfig.ui.json && vite build && vite build --config vite.sw.config.mts && vite build --config vite.content.config.mts",
+    "watch": "tsc --watch --project . & tsc --watch --project tsconfig.ui.json & vite build --watch & vite build --watch --config vite.sw.config.mts",
+    "test": "playwright test",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.315",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.8.2",
+    "vite": "^5.4.20",
+    "vite-plugin-static-copy": "^3.1.1"
+  }
+}

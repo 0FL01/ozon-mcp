@@ -1,0 +1,12 @@
+lib/
+dist/
+node_modules/
+test-results/
+playwright-report/
+.vscode/mcp.json
+.idea
+.DS_Store
+.env
+.env.local
+sessions/
+.claude/
