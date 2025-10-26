@@ -881,6 +881,7 @@ class UnifiedBackend {
             (() => {
               const baseSelector = ${JSON.stringify(selectorOrObj.baseSelector)};
               const searchText = ${JSON.stringify(selectorOrObj.searchText)};
+              const remainderSelector = ${JSON.stringify(selectorOrObj.remainderSelector)};
               const elements = document.querySelectorAll(baseSelector);
               const matches = [];
 
@@ -888,8 +889,16 @@ class UnifiedBackend {
                 const text = (el.textContent || el.innerText || '').trim();
                 const searchTextLower = searchText.trim().toLowerCase();
                 if (text.toLowerCase().includes(searchTextLower)) {
-                  const rect = el.getBoundingClientRect();
-                  const style = window.getComputedStyle(el);
+                  // If there's a remainder selector, find the descendant element to interact with
+                  let targetEl = el;
+                  if (remainderSelector) {
+                    const descendant = el.querySelector(remainderSelector);
+                    if (!descendant) continue; // Skip if descendant not found
+                    targetEl = descendant;
+                  }
+
+                  const rect = targetEl.getBoundingClientRect();
+                  const style = window.getComputedStyle(targetEl);
 
                   // Check visibility
                   let visible = true;
@@ -1145,14 +1154,23 @@ class UnifiedBackend {
    */
   _getSelectorExpression(selectorOrObj) {
     if (typeof selectorOrObj === 'object' && selectorOrObj.type === 'has-text') {
-      // Generate JS to find element by text
+      // Generate JS to find element by text, then apply remainder selector if present
       return `(() => {
         const baseSelector = ${JSON.stringify(selectorOrObj.baseSelector)};
         const searchText = ${JSON.stringify(selectorOrObj.searchText)};
+        const remainderSelector = ${JSON.stringify(selectorOrObj.remainderSelector)};
         const elements = document.querySelectorAll(baseSelector);
         for (const el of elements) {
           const text = el.textContent || el.innerText || '';
-          if (text.includes(searchText)) return el;
+          if (text.includes(searchText)) {
+            // If there's a remainder selector, find the descendant element
+            if (remainderSelector) {
+              const target = el.querySelector(remainderSelector);
+              if (target) return target;
+            } else {
+              return el;
+            }
+          }
         }
         return null;
       })()`;
@@ -1176,6 +1194,8 @@ class UnifiedBackend {
     if (hasTextMatch) {
       const searchText = hasTextMatch[1];
       let baseSelectorPart = selector.substring(0, hasTextMatch.index);
+      // Capture the remainder of the selector after :has-text(...)
+      const remainderSelector = selector.substring(hasTextMatch.index + hasTextMatch[0].length).trim();
 
       // Expand 'button' in the base selector before creating has-text object
       if (baseSelectorPart === 'button') {
@@ -1190,6 +1210,7 @@ class UnifiedBackend {
         type: 'has-text',
         baseSelector: baseSelectorPart || '*',
         searchText: searchText,
+        remainderSelector: remainderSelector || null,
         originalSelector: selector
       };
     }
