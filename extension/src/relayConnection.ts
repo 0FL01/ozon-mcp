@@ -1419,6 +1419,18 @@ export class RelayConnection {
       await chrome.windows.update(selectedTab.windowId!, { focused: true });
     }
 
+    // Detach from old tab if switching tabs (save old debuggee before updating)
+    const oldDebuggee = this._debuggee;
+    if (oldDebuggee && oldDebuggee.tabId !== selectedTab.id) {
+      debugLog('Detaching debugger from old tab:', oldDebuggee.tabId);
+      try {
+        await chrome.debugger.detach(oldDebuggee);
+        debugLog('Detached from old tab successfully');
+      } catch (error: any) {
+        debugLog('Failed to detach from old tab (may already be detached):', error.message);
+      }
+    }
+
     // Update the debuggee to attach to this tab
     this._debuggee = { tabId: selectedTab.id };
 
@@ -1438,6 +1450,13 @@ export class RelayConnection {
 
     // In proxy mode, store connection mapping
     if (connectionId) {
+      // Clear old tab mapping if this connection was attached to a different tab
+      const oldTabId = this._connectionMap.get(connectionId);
+      if (oldTabId && oldTabId !== selectedTab.id) {
+        this._tabConnectionMap.delete(oldTabId);
+        debugLog(`Cleared old tab mapping for connection ${connectionId}: tab ${oldTabId}`);
+      }
+
       this._connectionMap.set(connectionId, selectedTab.id);
       this._tabConnectionMap.set(selectedTab.id, connectionId);
       debugLog(`Stored connection mapping: ${connectionId} ↔ tab ${selectedTab.id}`);
