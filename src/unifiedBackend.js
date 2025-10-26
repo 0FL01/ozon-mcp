@@ -1411,8 +1411,20 @@ class UnifiedBackend {
               }
             });
 
+            // Get page scroll position to calculate absolute page coordinates
+            const scrollInfo = await this._transport.sendCommand('forwardCDPCommand', {
+              method: 'Runtime.evaluate',
+              params: {
+                expression: `({ scrollX: window.scrollX, scrollY: window.scrollY })`,
+                returnByValue: true
+              }
+            });
+            const scroll = scrollInfo.result?.value || { scrollX: 0, scrollY: 0 };
+            const pageX = Math.round(x + scroll.scrollX);
+            const pageY = Math.round(y + scroll.scrollY);
+
             // Normal click result (select elements are handled before clicking)
-            result = `Clicked ${action.selector}`;
+            result = `Clicked ${action.selector} at viewport(${Math.round(x)}, ${Math.round(y)}) page(${pageX}, ${pageY})`;
             if (warning) {
               result += ` ⚠️ ${warning}`;
             }
