@@ -4,6 +4,31 @@ set -e
 # Blueprint MCP Release Script
 # Complete local release workflow with changelog generation
 
+# Parse arguments
+AUTO_YES=false
+VERSION_TYPE=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -y|--yes)
+      AUTO_YES=true
+      shift
+      ;;
+    patch|minor|major)
+      VERSION_TYPE=$1
+      shift
+      ;;
+    *)
+      echo "❌ Error: Unknown argument '$1'"
+      echo "   Usage: ./release.sh [patch|minor|major] [-y|--yes]"
+      exit 1
+      ;;
+  esac
+done
+
+# Default to patch if not specified
+VERSION_TYPE=${VERSION_TYPE:-patch}
+
 echo "🚀 Blueprint MCP Release Script"
 echo ""
 
@@ -34,20 +59,12 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 # Pull latest from remote
-echo "📥 Pulling latest changes from origin/main..."
-git pull origin main
+echo "📥 Pulling latest from origin/main..."
+git pull origin main -q
 
 # ============================================================================
 # 2. VERSION BUMPING
 # ============================================================================
-
-# Get version type (patch, minor, major)
-VERSION_TYPE=${1:-patch}
-if [[ ! "$VERSION_TYPE" =~ ^(patch|minor|major)$ ]]; then
-  echo "❌ Error: Invalid version type '$VERSION_TYPE'"
-  echo "   Usage: ./release.sh [patch|minor|major]"
-  exit 1
-fi
 
 echo "📦 Bumping version ($VERSION_TYPE)..."
 echo ""
@@ -136,8 +153,8 @@ echo ""
 # Build Chrome extension
 echo "  → Building Chrome extension..."
 cd extensions/chrome
-npm ci
-npm run build
+npm ci -q
+npm run build > /dev/null 2>&1
 cd ../..
 echo "  ✅ Chrome extension built"
 
@@ -210,11 +227,16 @@ echo ""
 # ============================================================================
 
 echo "📤 Pushing to GitHub..."
-read -p "   Push commits and tags to origin/main? (y/n) " -n 1 -r
-echo
+if [ "$AUTO_YES" = true ]; then
+  REPLY="y"
+else
+  read -p "   Push commits and tags to origin/main? (y/n) " -n 1 -r
+  echo
+fi
+
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-  git push origin main
-  git push origin "v$NEW_VERSION"
+  git push origin main -q
+  git push origin "v$NEW_VERSION" -q
   echo "  ✅ Pushed to GitHub"
 else
   echo "  ⏭️  Skipped GitHub push"
@@ -229,18 +251,23 @@ echo ""
 # ============================================================================
 
 echo "📦 Publishing to npm..."
-read -p "   Publish @railsblueprint/blueprint-mcp@$NEW_VERSION to npm? (y/n) " -n 1 -r
-echo
+if [ "$AUTO_YES" = true ]; then
+  REPLY="y"
+else
+  read -p "   Publish @railsblueprint/blueprint-mcp@$NEW_VERSION to npm? (y/n) " -n 1 -r
+  echo
+fi
+
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   cd server
-  npm publish
+  npm publish --access public
   cd ..
   echo "  ✅ Published to npm"
   echo "  📍 https://www.npmjs.com/package/@railsblueprint/blueprint-mcp/v/$NEW_VERSION"
 else
   echo "  ⏭️  Skipped npm publish"
   echo "  ⚠️  Remember to publish manually later:"
-  echo "     cd server && npm publish"
+  echo "     cd server && npm publish --access public"
 fi
 echo ""
 
