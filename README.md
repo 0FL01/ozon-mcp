@@ -48,27 +48,29 @@ npm install -g @railsblueprint/blueprint-mcp
 ```json
 {
   "mcpServers": {
-    "chrome": {
-      "command": "blueprint-mcp"
+    "browser": {
+      "command": "npx",
+      "args": ["@railsblueprint/blueprint-mcp@latest"]
     }
   }
 }
+```
+
+**Claude Code** (AI-powered CLI):
+```bash
+claude mcp add browser npx @railsblueprint/blueprint-mcp@latest
 ```
 
 **VS Code / Cursor** (`.vscode/settings.json`):
 ```json
 {
   "mcp.servers": {
-    "chrome": {
-      "command": "blueprint-mcp"
+    "browser": {
+      "command": "npx",
+      "args": ["@railsblueprint/blueprint-mcp@latest"]
     }
   }
 }
-```
-
-**Cline** (Claude Code CLI):
-```bash
-claude mcp add chrome blueprint-mcp
 ```
 
 ## Quick Start

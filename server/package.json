@@ -1,0 +1,40 @@
+{
+  "name": "@railsblueprint/blueprint-mcp",
+  "version": "1.5.5",
+  "description": "MCP server for browser automation across Chrome, Firefox, and Safari using real browser profiles",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/railsblueprint/blueprint-mcp.git"
+  },
+  "homepage": "https://blueprint-mcp.railsblueprint.com",
+  "engines": {
+    "node": ">=18"
+  },
+  "author": {
+    "name": "Rails Blueprint"
+  },
+  "license": "Apache-2.0",
+  "scripts": {
+    "docker-build": "docker build --no-cache -t blueprint-mcp-dev:latest ..",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "commander": "^14.0.1",
+    "env-paths": "^2.2.1",
+    "image-size": "^2.0.2",
+    "jsonpath-plus": "^10.3.0",
+    "proper-lockfile": "^4.1.2",
+    "sharp": "^0.34.4",
+    "ws": "^8.18.3"
+  },
+  "bin": {
+    "blueprint-mcp": "cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "jest": "^30.2.0"
+  }
+}

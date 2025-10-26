@@ -54,12 +54,12 @@ class FileLogger {
 // Singleton instance
 let instance = null;
 
-function getLogger() {
+function getLogger(customLogPath = null) {
   if (!instance) {
-    const logPath = path.join(__dirname, '..', 'mcp-debug.log');
+    const logPath = customLogPath || path.join(__dirname, '..', '..', 'logs', 'mcp-debug.log');
     instance = new FileLogger(logPath);
   }
   return instance;
 }
 
-module.exports = { getLogger };
+module.exports = { getLogger, FileLogger };

@@ -1,8 +1,6 @@
 lib/
 dist/
 node_modules/
-test-results/
-playwright-report/
 .vscode/mcp.json
 .idea
 .DS_Store
@@ -11,3 +9,12 @@ playwright-report/
 sessions/
 .claude/
 mcp-debug.log
+
+# Ignore logs and temp files (keep only .keep files)
+logs/*
+!logs/.keep
+tmp/*
+!tmp/.keep
+
+# Ignore built extension artifacts in releases (zips are tracked)
+releases/*/dist/

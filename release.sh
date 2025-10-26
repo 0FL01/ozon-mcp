@@ -1,86 +1,271 @@
 #!/bin/bash
 set -e
 
-# Release script for chrome-mcp
-# Updates versions, rebuilds extension, commits, and publishes
+# Blueprint MCP Release Script
+# Complete local release workflow with changelog generation
 
-echo "🚀 Chrome MCP Release Script"
+echo "🚀 Blueprint MCP Release Script"
 echo ""
+
+# ============================================================================
+# 1. PRE-FLIGHT CHECKS
+# ============================================================================
 
 # Check if we're in the right directory
 if [ ! -f "package.json" ]; then
-  echo "❌ Error: Must run from chrome-mcp root directory"
+  echo "❌ Error: Must run from project root directory"
   exit 1
 fi
 
-# Get version type (patch, minor, major)
-VERSION_TYPE=${1:-patch}
-echo "📦 Bumping version ($VERSION_TYPE)..."
-
-# Update root package.json
-npm version $VERSION_TYPE --no-git-tag-version
-
-# Get new version
-NEW_VERSION=$(node -p "require('./package.json').version")
-echo "✅ New version: $NEW_VERSION"
-
-# Update extension package.json
-echo "📦 Updating extension package.json..."
-cd extension
-npm version $VERSION_TYPE --no-git-tag-version
-cd ..
-
-# Update extension manifest.json
-echo "📦 Updating extension manifest.json..."
-node -e "
-const fs = require('fs');
-const manifest = JSON.parse(fs.readFileSync('extension/manifest.json', 'utf8'));
-manifest.version = '$NEW_VERSION';
-fs.writeFileSync('extension/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
-console.log('✅ Updated manifest.json to version $NEW_VERSION');
-"
-
-# Rebuild extension (for local testing - dist is gitignored)
-echo "🔨 Building extension..."
-cd extension
-npm run build
-cd ..
-echo "✅ Extension built (note: dist/ is gitignored, users will build on install)"
-
-# Show what changed
-echo ""
-echo "📝 Files updated:"
-git status --short
-
-# Commit
-echo ""
-read -p "📝 Enter commit message: " COMMIT_MSG
-git add package.json package-lock.json extension/package.json extension/package-lock.json extension/manifest.json extension/dist src/
-git commit -m "$COMMIT_MSG
-
-Version bumped to $NEW_VERSION"
-
-# Publish to npm
-echo ""
-read -p "🚀 Publish to npm? (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-  npm publish
-  echo "✅ Published to npm"
-else
-  echo "⏭️  Skipped npm publish"
+# Check we're on main branch
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" != "main" ]; then
+  echo "❌ Error: Must be on main branch (currently on $CURRENT_BRANCH)"
+  echo "   Switch with: git checkout main"
+  exit 1
 fi
 
-# Push to GitHub
+# Check for uncommitted changes
+if [ -n "$(git status --porcelain)" ]; then
+  echo "❌ Error: Working directory has uncommitted changes"
+  echo "   Commit or stash your changes first"
+  git status --short
+  exit 1
+fi
+
+# Pull latest from remote
+echo "📥 Pulling latest changes from origin/main..."
+git pull origin main
+
+# ============================================================================
+# 2. VERSION BUMPING
+# ============================================================================
+
+# Get version type (patch, minor, major)
+VERSION_TYPE=${1:-patch}
+if [[ ! "$VERSION_TYPE" =~ ^(patch|minor|major)$ ]]; then
+  echo "❌ Error: Invalid version type '$VERSION_TYPE'"
+  echo "   Usage: ./release.sh [patch|minor|major]"
+  exit 1
+fi
+
+echo "📦 Bumping version ($VERSION_TYPE)..."
 echo ""
-read -p "🚀 Push to GitHub? (y/n) " -n 1 -r
+
+# Update server package.json
+echo "  → Updating server/package.json..."
+cd server
+npm version $VERSION_TYPE --no-git-tag-version
+cd ..
+
+# Get new version from server
+NEW_VERSION=$(node -p "require('./server/package.json').version")
+echo "  ✅ New version: $NEW_VERSION"
+
+# Update Chrome extension
+echo "  → Updating extensions/chrome/package.json..."
+cd extensions/chrome
+npm version $NEW_VERSION --no-git-tag-version --allow-same-version
+cd ../..
+
+# Update Chrome manifest.json
+echo "  → Updating extensions/chrome/manifest.json..."
+node -e "
+const fs = require('fs');
+const manifest = JSON.parse(fs.readFileSync('extensions/chrome/manifest.json', 'utf8'));
+manifest.version = '$NEW_VERSION';
+fs.writeFileSync('extensions/chrome/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+"
+
+# Update Firefox manifest.json
+echo "  → Updating extensions/firefox/manifest.json..."
+node -e "
+const fs = require('fs');
+const manifest = JSON.parse(fs.readFileSync('extensions/firefox/manifest.json', 'utf8'));
+manifest.version = '$NEW_VERSION';
+fs.writeFileSync('extensions/firefox/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+"
+
+echo "  ✅ All versions updated to $NEW_VERSION"
+echo ""
+
+# ============================================================================
+# 3. CHANGELOG GENERATION
+# ============================================================================
+
+echo "📝 Generating CHANGELOG..."
+
+# Get last tag
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+if [ -z "$LAST_TAG" ]; then
+  echo "  ℹ️  No previous tag found, generating changelog from all commits"
+  COMMIT_RANGE="HEAD"
+else
+  echo "  ℹ️  Generating changelog since $LAST_TAG"
+  COMMIT_RANGE="$LAST_TAG..HEAD"
+fi
+
+# Generate changelog entry
+CHANGELOG_ENTRY="# v$NEW_VERSION ($(date +%Y-%m-%d))
+
+## Changes
+
+$(git log $COMMIT_RANGE --pretty=format:"- %s" --no-merges)
+
+"
+
+# Prepend to CHANGELOG.md or create it
+if [ -f "CHANGELOG.md" ]; then
+  echo "$CHANGELOG_ENTRY
+$(cat CHANGELOG.md)" > CHANGELOG.md
+else
+  echo "$CHANGELOG_ENTRY" > CHANGELOG.md
+fi
+
+echo "  ✅ CHANGELOG.md updated"
+echo ""
+
+# ============================================================================
+# 4. BUILD EXTENSIONS
+# ============================================================================
+
+echo "🔨 Building extensions..."
+echo ""
+
+# Build Chrome extension
+echo "  → Building Chrome extension..."
+cd extensions/chrome
+npm ci
+npm run build
+cd ../..
+echo "  ✅ Chrome extension built"
+
+# Firefox doesn't need build (vanilla JS)
+echo "  ✅ Firefox extension ready (no build needed - vanilla JS)"
+echo ""
+
+# ============================================================================
+# 5. PACKAGE EXTENSIONS
+# ============================================================================
+
+echo "📦 Packaging extensions for store submission..."
+echo ""
+
+# Package Chrome extension
+CHROME_ZIP="releases/chrome/blueprint-mcp-chrome-v$NEW_VERSION.zip"
+echo "  → Creating $CHROME_ZIP..."
+cd extensions/chrome/dist
+zip -r ../../../$CHROME_ZIP . -q
+cd ../../..
+echo "  ✅ Chrome extension packaged: $CHROME_ZIP"
+
+# Package Firefox extension
+FIREFOX_ZIP="releases/firefox/blueprint-mcp-firefox-v$NEW_VERSION.zip"
+echo "  → Creating $FIREFOX_ZIP..."
+cd extensions/firefox
+zip -r ../../$FIREFOX_ZIP . -q \
+  -x "*.git*" \
+  -x "*node_modules*" \
+  -x "*.DS_Store"
+cd ../..
+echo "  ✅ Firefox extension packaged: $FIREFOX_ZIP"
+echo ""
+
+# ============================================================================
+# 6. COMMIT & TAG
+# ============================================================================
+
+echo "💾 Creating release commit..."
+
+# Stage all changes
+git add \
+  server/package.json \
+  server/package-lock.json \
+  extensions/chrome/package.json \
+  extensions/chrome/package-lock.json \
+  extensions/chrome/manifest.json \
+  extensions/firefox/manifest.json \
+  releases/chrome/blueprint-mcp-chrome-v$NEW_VERSION.zip \
+  releases/firefox/blueprint-mcp-firefox-v$NEW_VERSION.zip \
+  CHANGELOG.md
+
+# Commit
+git commit -m "Release v$NEW_VERSION
+
+- Bump version to $NEW_VERSION
+- Update CHANGELOG
+- Package Chrome and Firefox extensions for store submission"
+
+echo "  ✅ Changes committed"
+
+# Create tag
+echo "🏷️  Creating git tag v$NEW_VERSION..."
+git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
+echo "  ✅ Tag created: v$NEW_VERSION"
+echo ""
+
+# ============================================================================
+# 7. PUSH TO GITHUB
+# ============================================================================
+
+echo "📤 Pushing to GitHub..."
+read -p "   Push commits and tags to origin/main? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   git push origin main
-  echo "✅ Pushed to GitHub"
+  git push origin "v$NEW_VERSION"
+  echo "  ✅ Pushed to GitHub"
 else
-  echo "⏭️  Skipped GitHub push"
+  echo "  ⏭️  Skipped GitHub push"
+  echo "  ⚠️  Remember to push manually later:"
+  echo "     git push origin main"
+  echo "     git push origin v$NEW_VERSION"
 fi
-
 echo ""
-echo "✨ Release complete! Version $NEW_VERSION"
+
+# ============================================================================
+# 8. PUBLISH TO NPM
+# ============================================================================
+
+echo "📦 Publishing to npm..."
+read -p "   Publish @railsblueprint/blueprint-mcp@$NEW_VERSION to npm? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  cd server
+  npm publish
+  cd ..
+  echo "  ✅ Published to npm"
+  echo "  📍 https://www.npmjs.com/package/@railsblueprint/blueprint-mcp/v/$NEW_VERSION"
+else
+  echo "  ⏭️  Skipped npm publish"
+  echo "  ⚠️  Remember to publish manually later:"
+  echo "     cd server && npm publish"
+fi
+echo ""
+
+# ============================================================================
+# 9. SUMMARY
+# ============================================================================
+
+echo "✨ Release v$NEW_VERSION complete!"
+echo ""
+echo "📋 Summary:"
+echo "  • Version: $NEW_VERSION"
+echo "  • Git tag: v$NEW_VERSION"
+echo "  • Chrome zip: $CHROME_ZIP"
+echo "  • Firefox zip: $FIREFOX_ZIP"
+echo ""
+echo "📝 Next steps:"
+echo "  1. Upload Chrome extension to Chrome Web Store:"
+echo "     → Open: https://chrome.google.com/webstore/devconsole"
+echo "     → Upload: $CHROME_ZIP"
+echo ""
+echo "  2. Upload Firefox extension to Firefox Add-ons:"
+echo "     → Open: https://addons.mozilla.org/developers"
+echo "     → Upload: $FIREFOX_ZIP"
+echo ""
+echo "  3. Update GitHub release notes:"
+echo "     → Open: https://github.com/railsblueprint/blueprint-mcp/releases/tag/v$NEW_VERSION"
+echo "     → Add release notes from CHANGELOG.md"
+echo ""

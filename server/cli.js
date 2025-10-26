@@ -37,6 +37,7 @@ const packageJSON = require('./package.json');
 function resolveConfig(options) {
   return {
     debug: options.debug === true,
+    port: options.port || 5555,
     server: {
       name: 'Blueprint MCP for Chrome',
       version: packageJSON.version
@@ -146,13 +147,16 @@ async function main(options) {
   global.DEBUG_MODE = options.debug === true;
 
   // Enable file logging in debug mode
-  const logger = getLogger();
+  const logger = getLogger(options.logFile);
   if (global.DEBUG_MODE) {
     logger.enable();
     logger.log('[cli.js] Starting MCP server in PASSIVE mode (no connections)');
     logger.log('[cli.js] Use connect tool to activate');
     logger.log('[cli.js] Debug mode: ENABLED');
-    logger.log('[cli.js] Log file: mcp-debug.log');
+    logger.log('[cli.js] Log file:', logger.logFilePath);
+    if (options.port) {
+      logger.log('[cli.js] Custom port:', options.port);
+    }
   }
 
   const config = resolveConfig(options);
@@ -223,6 +227,8 @@ program
   .name('Blueprint MCP for Chrome')
   .description('MCP server for Chrome browser automation using the Blueprint MCP extension')
   .option('--debug', 'Enable debug mode (shows reload/extension tools and verbose logging)')
+  .option('--log-file <path>', 'Custom log file path (default: logs/mcp-debug.log)')
+  .option('--port <number>', 'WebSocket server port (default: 5555)', parseInt)
   .option('--child', 'Internal flag: indicates this is a child process spawned by wrapper')
   .action(async (options) => {
     // If --debug and NOT --child: run as wrapper (parent process)

@@ -3,7 +3,7 @@
  *
  * Manages connection states: passive -> active -> connected
  * - passive: Server ready, no connections, only connection tools available
- * - active: Port 5555 open, waiting for extension (standalone mode)
+ * - active: WebSocket server open, waiting for extension (standalone mode)
  * - connected: Extension connected
  *
  * Note: Authenticated mode (connecting to remote proxy) is handled separately
@@ -366,7 +366,7 @@ class StatefulBackend {
                 `1. **Continue in free mode (standalone):**\n` +
                 `   Use the auth tool to logout:\n` +
                 `   \`\`\`\n   auth action='logout'\n   \`\`\`\n` +
-                `   Then connect again - you'll use local browser only (port 5555)\n\n` +
+                `   Then connect again - you'll use local browser only\n\n` +
                 `2. **Login again for relay access:**\n` +
                 `   First logout, then login:\n` +
                 `   \`\`\`\n   auth action='logout'\n   auth action='login'\n   \`\`\`\n` +
@@ -391,7 +391,8 @@ class StatefulBackend {
       debugLog('[StatefulBackend] Starting extension server...');
 
       // Create our WebSocket server for extension connection
-      this._extensionServer = new ExtensionServer(5555, '127.0.0.1');
+      const port = this._config.port || 5555;
+      this._extensionServer = new ExtensionServer(port, '127.0.0.1');
       await this._extensionServer.start();
 
       // Send client_id to extension if connected
@@ -477,14 +478,15 @@ class StatefulBackend {
       this._state = 'passive';
 
       // Check if it's a port binding error
+      const port = this._config.port || 5555;
       const isPortError = error.message && (
         error.message.includes('EADDRINUSE') ||
         error.message.includes('address already in use') ||
-        error.message.includes('port 5555')
+        error.message.includes(`port ${port}`)
       );
 
       const errorMsg = isPortError
-        ? `### Connection Failed\n\nPort 5555 is already in use.\n\n**Possible causes:**\n- Another MCP server is already running\n- Another application is using port 5555\n\n**Solution:** Kill the process using port 5555:\n\`\`\`\nlsof -ti:5555 | xargs kill -9\n\`\`\`\n\nThen try connecting again.`
+        ? `### Connection Failed\n\nPort ${port} is already in use.\n\n**Possible causes:**\n- Another MCP server is already running\n- Another application is using port ${port}\n\n**Solution:** Kill the process using port ${port}:\n\`\`\`\nlsof -ti:${port} | xargs kill -9\n\`\`\`\n\nThen try connecting again.`
         : `### Connection Failed\n\nFailed to start server:\n${error.message}`;
 
       return {
@@ -718,7 +720,7 @@ class StatefulBackend {
       debugLog('[StatefulBackend] Stopping ExtensionServer...');
       await this._extensionServer.stop();
       this._extensionServer = null;
-      debugLog('[StatefulBackend] ExtensionServer stopped, port 5555 closed');
+      debugLog('[StatefulBackend] ExtensionServer stopped');
     }
 
     this._state = 'passive';

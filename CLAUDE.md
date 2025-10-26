@@ -30,19 +30,25 @@ Blueprint MCP for Chrome is an MCP (Model Context Protocol) server + browser ext
 
 ### Server Development
 ```bash
+cd server
+
 # Run MCP server in debug mode
 node cli.js --debug
+
+# Run with custom log file and port
+node cli.js --debug --log-file ../logs/custom.log --port 5556
 
 # Test the server
 npm test
 
-# Version bump and release
+# Version bump and release (from root)
+cd ..
 ./release.sh
 ```
 
 ### Chrome Extension Development (TypeScript + Vite)
 ```bash
-cd extension
+cd extensions/chrome
 
 # Install dependencies
 npm install
@@ -53,15 +59,35 @@ npm run build
 # Watch mode for development
 npm run dev
 
-# Load unpacked extension from extension/dist/
+# Load unpacked extension from extensions/chrome/dist/
+```
+
+### Temporary Files & Logs
+
+**IMPORTANT:** When creating temporary test files or debugging artifacts:
+
+- **Use `tmp/` folder** - For all temporary test files, debug outputs, and experimental code
+- **Use `logs/` folder** - Server logs are written here by default (mcp-debug.log)
+- Both folders are gitignored (except .keep files)
+- These folders are at the project root, not in server/
+
+```bash
+# Example: Create a test file
+echo "test data" > tmp/my-test.json
+
+# Example: Create a debug output
+node -e "console.log('test')" > tmp/debug-output.txt
+
+# Logs are automatically written to logs/ in debug mode
+ls logs/mcp-debug.log
 ```
 
 ### Firefox Extension Development (Vanilla JS)
 ```bash
-cd firefox-extension
+cd extensions/firefox
 
 # No build step needed - pure vanilla JS
-# Load unpacked from firefox-extension/ directly
+# Load unpacked from extensions/firefox/ directly
 # about:debugging -> Load Temporary Add-on
 ```
 
