@@ -1,3 +1,11 @@
+# v1.6.2 (2025-10-26)
+
+## Changes
+
+- Fix: Escape selector in browser_interact to prevent JavaScript syntax errors (#2)
+- Fix release script: Add --access public and -y flag
+
+
 # v1.6.1 (2025-10-26)
 
 ## Changes
