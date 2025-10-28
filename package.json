@@ -14,9 +14,11 @@
   "license": "Apache-2.0",
   "scripts": {
     "install:server": "cd server && npm install",
-    "install:chrome": "cd extensions/chrome && npm install",
-    "install:all": "npm run install:server && npm run install:chrome",
-    "build:chrome": "cd extensions/chrome && npm run build",
+    "install:all": "npm run install:server",
+    "build:chrome": "cd extensions && node build-chrome.js",
+    "build:firefox": "cd extensions && node build-firefox.js",
+    "build:safari": "cd extensions && node build-safari.js",
+    "build:extensions": "npm run build:chrome && npm run build:firefox && npm run build:safari",
     "test:server": "cd server && npm test",
     "dev:server": "cd server && node cli.js --debug"
   }

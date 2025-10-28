@@ -175,25 +175,45 @@ export class BrowserAdapter {
   /**
    * Execute script in tab
    * Handles executeScript differences between browsers
-   * Manifest V3 compatible - uses MAIN world to execute arbitrary code
+   * Manifest V3 compatible - supports both MAIN and ISOLATED worlds
+   *
+   * Options:
+   * - func: Function to execute (CSP-safe, preferred)
+   * - args: Array of arguments to pass to func
+   * - code: String code to execute (requires eval, blocked by CSP on some pages)
+   * - world: 'MAIN' or 'ISOLATED' (default: ISOLATED)
    */
   async executeScript(tabId, options) {
     // Manifest v3 uses scripting.executeScript
     if (this.manifestVersion === 3 && this.api.scripting) {
-      // Use MAIN world (Firefox 128+) - NOT blocked by page CSP
-      // The function runs in the page's main execution environment
-      const results = await this.api.scripting.executeScript({
-        target: { tabId: tabId },
-        world: 'MAIN',  // Run in page world - page CSP does not apply!
-        func: (code) => {
-          // In MAIN world, eval is allowed even on CSP-strict pages
-          return eval(code);
-        },
-        args: [options.code]
-      });
+      // Use specified world or default to ISOLATED
+      // ISOLATED = isolated context for stealth (passes bot detection)
+      // MAIN = page context (needed for console override, dialog override)
+      const world = options.world || 'ISOLATED';
 
-      // Return results in the same format as old tabs.executeScript
-      return results.map(r => r.result);
+      // If func provided, use it directly (CSP-safe)
+      if (options.func) {
+        const results = await this.api.scripting.executeScript({
+          target: { tabId: tabId },
+          world: world,
+          func: options.func,
+          args: options.args || []
+        });
+        return results.map(r => r.result);
+      }
+
+      // If code provided, use eval (blocked by CSP on some pages)
+      if (options.code) {
+        const results = await this.api.scripting.executeScript({
+          target: { tabId: tabId },
+          world: world,
+          func: (code) => { return eval(code); },
+          args: [options.code]
+        });
+        return results.map(r => r.result);
+      }
+
+      throw new Error('executeScript requires either func or code option');
     }
 
     // Manifest v2 fallback (deprecated)

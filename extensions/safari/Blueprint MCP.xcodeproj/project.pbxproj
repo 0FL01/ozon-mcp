@@ -1,0 +1,837 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		409CA8B42EAE8C1300383296 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409CA8B32EAE8C1300383296 /* AppDelegate.swift */; };
+		409CA8B82EAE8C1300383296 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = 409CA8B62EAE8C1300383296 /* Main.html */; };
+		409CA8BA2EAE8C1300383296 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 409CA8B92EAE8C1300383296 /* Icon.png */; };
+		409CA8BC2EAE8C1300383296 /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = 409CA8BB2EAE8C1300383296 /* Style.css */; };
+		409CA8BE2EAE8C1300383296 /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = 409CA8BD2EAE8C1300383296 /* Script.js */; };
+		409CA8C02EAE8C1300383296 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409CA8BF2EAE8C1300383296 /* ViewController.swift */; };
+		409CA8C32EAE8C1300383296 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 409CA8C12EAE8C1300383296 /* Main.storyboard */; };
+		409CA8C52EAE8C1400383296 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 409CA8C42EAE8C1400383296 /* Assets.xcassets */; };
+		409CA8D22EAE8C1400383296 /* Blueprint_MCPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409CA8D12EAE8C1400383296 /* Blueprint_MCPTests.swift */; };
+		409CA8DC2EAE8C1400383296 /* Blueprint_MCPUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409CA8DB2EAE8C1400383296 /* Blueprint_MCPUITests.swift */; };
+		409CA8DE2EAE8C1400383296 /* Blueprint_MCPUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409CA8DD2EAE8C1400383296 /* Blueprint_MCPUITestsLaunchTests.swift */; };
+		409CA8E42EAE8C1400383296 /* Blueprint MCP Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 409CA8E32EAE8C1400383296 /* Blueprint MCP Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		409CA8E92EAE8C1400383296 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409CA8E82EAE8C1400383296 /* SafariWebExtensionHandler.swift */; };
+		409CA9032EAE8C1400383296 /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 409CA8FC2EAE8C1400383296 /* popup.js */; };
+		409CA9042EAE8C1400383296 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = 409CA8FD2EAE8C1400383296 /* popup.html */; };
+		409CA9052EAE8C1400383296 /* shared in Resources */ = {isa = PBXBuildFile; fileRef = 409CA8FE2EAE8C1400383296 /* shared */; };
+		409CA9062EAE8C1400383296 /* public in Resources */ = {isa = PBXBuildFile; fileRef = 409CA8FF2EAE8C1400383296 /* public */; };
+		409CA9072EAE8C1400383296 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 409CA9002EAE8C1400383296 /* icons */; };
+		409CA9082EAE8C1400383296 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 409CA9012EAE8C1400383296 /* manifest.json */; };
+		409CA9092EAE8C1400383296 /* src in Resources */ = {isa = PBXBuildFile; fileRef = 409CA9022EAE8C1400383296 /* src */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		409CA8CE2EAE8C1400383296 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 409CA8A82EAE8C1300383296 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 409CA8AF2EAE8C1300383296;
+			remoteInfo = "Blueprint MCP";
+		};
+		409CA8D82EAE8C1400383296 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 409CA8A82EAE8C1300383296 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 409CA8AF2EAE8C1300383296;
+			remoteInfo = "Blueprint MCP";
+		};
+		409CA8E52EAE8C1400383296 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 409CA8A82EAE8C1300383296 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 409CA8E22EAE8C1400383296;
+			remoteInfo = "Blueprint MCP Extension";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		409CA8F12EAE8C1400383296 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				409CA8E42EAE8C1400383296 /* Blueprint MCP Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		409CA8B02EAE8C1300383296 /* Blueprint MCP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Blueprint MCP.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		409CA8B32EAE8C1300383296 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		409CA8B72EAE8C1300383296 /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
+		409CA8B92EAE8C1300383296 /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
+		409CA8BB2EAE8C1300383296 /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
+		409CA8BD2EAE8C1300383296 /* Script.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Script.js; sourceTree = "<group>"; };
+		409CA8BF2EAE8C1300383296 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		409CA8C22EAE8C1300383296 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		409CA8C42EAE8C1400383296 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		409CA8C62EAE8C1400383296 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		409CA8C72EAE8C1400383296 /* Blueprint_MCP.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Blueprint_MCP.entitlements; sourceTree = "<group>"; };
+		409CA8C82EAE8C1400383296 /* Blueprint MCP.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Blueprint MCP.entitlements"; sourceTree = "<group>"; };
+		409CA8CD2EAE8C1400383296 /* Blueprint MCPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Blueprint MCPTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		409CA8D12EAE8C1400383296 /* Blueprint_MCPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Blueprint_MCPTests.swift; sourceTree = "<group>"; };
+		409CA8D72EAE8C1400383296 /* Blueprint MCPUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Blueprint MCPUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		409CA8DB2EAE8C1400383296 /* Blueprint_MCPUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Blueprint_MCPUITests.swift; sourceTree = "<group>"; };
+		409CA8DD2EAE8C1400383296 /* Blueprint_MCPUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Blueprint_MCPUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		409CA8E32EAE8C1400383296 /* Blueprint MCP Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Blueprint MCP Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		409CA8E82EAE8C1400383296 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		409CA8EA2EAE8C1400383296 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		409CA8EB2EAE8C1400383296 /* Blueprint_MCP_Extension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Blueprint_MCP_Extension.entitlements; sourceTree = "<group>"; };
+		409CA8FC2EAE8C1400383296 /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = popup.js; path = Resources/popup.js; sourceTree = "<group>"; };
+		409CA8FD2EAE8C1400383296 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = popup.html; path = Resources/popup.html; sourceTree = "<group>"; };
+		409CA8FE2EAE8C1400383296 /* shared */ = {isa = PBXFileReference; lastKnownFileType = folder; name = shared; path = Resources/shared; sourceTree = "<group>"; };
+		409CA8FF2EAE8C1400383296 /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; name = public; path = Resources/public; sourceTree = "<group>"; };
+		409CA9002EAE8C1400383296 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = Resources/icons; sourceTree = "<group>"; };
+		409CA9012EAE8C1400383296 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = Resources/manifest.json; sourceTree = "<group>"; };
+		409CA9022EAE8C1400383296 /* src */ = {isa = PBXFileReference; lastKnownFileType = folder; name = src; path = Resources/src; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		409CA8AD2EAE8C1300383296 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		409CA8CA2EAE8C1400383296 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		409CA8D42EAE8C1400383296 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		409CA8E02EAE8C1400383296 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		409CA8A72EAE8C1300383296 = {
+			isa = PBXGroup;
+			children = (
+				409CA8B22EAE8C1300383296 /* Blueprint MCP */,
+				409CA8D02EAE8C1400383296 /* Blueprint MCPTests */,
+				409CA8DA2EAE8C1400383296 /* Blueprint MCPUITests */,
+				409CA8E72EAE8C1400383296 /* Blueprint MCP Extension */,
+				409CA8B12EAE8C1300383296 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		409CA8B12EAE8C1300383296 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				409CA8B02EAE8C1300383296 /* Blueprint MCP.app */,
+				409CA8CD2EAE8C1400383296 /* Blueprint MCPTests.xctest */,
+				409CA8D72EAE8C1400383296 /* Blueprint MCPUITests.xctest */,
+				409CA8E32EAE8C1400383296 /* Blueprint MCP Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		409CA8B22EAE8C1300383296 /* Blueprint MCP */ = {
+			isa = PBXGroup;
+			children = (
+				409CA8B32EAE8C1300383296 /* AppDelegate.swift */,
+				409CA8BF2EAE8C1300383296 /* ViewController.swift */,
+				409CA8C12EAE8C1300383296 /* Main.storyboard */,
+				409CA8C42EAE8C1400383296 /* Assets.xcassets */,
+				409CA8C62EAE8C1400383296 /* Info.plist */,
+				409CA8C72EAE8C1400383296 /* Blueprint_MCP.entitlements */,
+				409CA8C82EAE8C1400383296 /* Blueprint MCP.entitlements */,
+				409CA8B52EAE8C1300383296 /* Resources */,
+			);
+			path = "Blueprint MCP";
+			sourceTree = "<group>";
+		};
+		409CA8B52EAE8C1300383296 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				409CA8B62EAE8C1300383296 /* Main.html */,
+				409CA8B92EAE8C1300383296 /* Icon.png */,
+				409CA8BB2EAE8C1300383296 /* Style.css */,
+				409CA8BD2EAE8C1300383296 /* Script.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		409CA8D02EAE8C1400383296 /* Blueprint MCPTests */ = {
+			isa = PBXGroup;
+			children = (
+				409CA8D12EAE8C1400383296 /* Blueprint_MCPTests.swift */,
+			);
+			path = "Blueprint MCPTests";
+			sourceTree = "<group>";
+		};
+		409CA8DA2EAE8C1400383296 /* Blueprint MCPUITests */ = {
+			isa = PBXGroup;
+			children = (
+				409CA8DB2EAE8C1400383296 /* Blueprint_MCPUITests.swift */,
+				409CA8DD2EAE8C1400383296 /* Blueprint_MCPUITestsLaunchTests.swift */,
+			);
+			path = "Blueprint MCPUITests";
+			sourceTree = "<group>";
+		};
+		409CA8E72EAE8C1400383296 /* Blueprint MCP Extension */ = {
+			isa = PBXGroup;
+			children = (
+				409CA8FB2EAE8C1400383296 /* Resources */,
+				409CA8E82EAE8C1400383296 /* SafariWebExtensionHandler.swift */,
+				409CA8EA2EAE8C1400383296 /* Info.plist */,
+				409CA8EB2EAE8C1400383296 /* Blueprint_MCP_Extension.entitlements */,
+			);
+			path = "Blueprint MCP Extension";
+			sourceTree = "<group>";
+		};
+		409CA8FB2EAE8C1400383296 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				409CA8FC2EAE8C1400383296 /* popup.js */,
+				409CA8FD2EAE8C1400383296 /* popup.html */,
+				409CA8FE2EAE8C1400383296 /* shared */,
+				409CA8FF2EAE8C1400383296 /* public */,
+				409CA9002EAE8C1400383296 /* icons */,
+				409CA9012EAE8C1400383296 /* manifest.json */,
+				409CA9022EAE8C1400383296 /* src */,
+			);
+			name = Resources;
+			path = "Blueprint MCP Extension";
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		409CA8AF2EAE8C1300383296 /* Blueprint MCP */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 409CA8F22EAE8C1400383296 /* Build configuration list for PBXNativeTarget "Blueprint MCP" */;
+			buildPhases = (
+				409CA8AC2EAE8C1300383296 /* Sources */,
+				409CA8AD2EAE8C1300383296 /* Frameworks */,
+				409CA8AE2EAE8C1300383296 /* Resources */,
+				409CA8F12EAE8C1400383296 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				409CA8E62EAE8C1400383296 /* PBXTargetDependency */,
+			);
+			name = "Blueprint MCP";
+			packageProductDependencies = (
+			);
+			productName = "Blueprint MCP";
+			productReference = 409CA8B02EAE8C1300383296 /* Blueprint MCP.app */;
+			productType = "com.apple.product-type.application";
+		};
+		409CA8CC2EAE8C1400383296 /* Blueprint MCPTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 409CA8F52EAE8C1400383296 /* Build configuration list for PBXNativeTarget "Blueprint MCPTests" */;
+			buildPhases = (
+				409CA8C92EAE8C1400383296 /* Sources */,
+				409CA8CA2EAE8C1400383296 /* Frameworks */,
+				409CA8CB2EAE8C1400383296 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				409CA8CF2EAE8C1400383296 /* PBXTargetDependency */,
+			);
+			name = "Blueprint MCPTests";
+			packageProductDependencies = (
+			);
+			productName = "Blueprint MCPTests";
+			productReference = 409CA8CD2EAE8C1400383296 /* Blueprint MCPTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		409CA8D62EAE8C1400383296 /* Blueprint MCPUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 409CA8F82EAE8C1400383296 /* Build configuration list for PBXNativeTarget "Blueprint MCPUITests" */;
+			buildPhases = (
+				409CA8D32EAE8C1400383296 /* Sources */,
+				409CA8D42EAE8C1400383296 /* Frameworks */,
+				409CA8D52EAE8C1400383296 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				409CA8D92EAE8C1400383296 /* PBXTargetDependency */,
+			);
+			name = "Blueprint MCPUITests";
+			packageProductDependencies = (
+			);
+			productName = "Blueprint MCPUITests";
+			productReference = 409CA8D72EAE8C1400383296 /* Blueprint MCPUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		409CA8E22EAE8C1400383296 /* Blueprint MCP Extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 409CA8EE2EAE8C1400383296 /* Build configuration list for PBXNativeTarget "Blueprint MCP Extension" */;
+			buildPhases = (
+				409CA8DF2EAE8C1400383296 /* Sources */,
+				409CA8E02EAE8C1400383296 /* Frameworks */,
+				409CA8E12EAE8C1400383296 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Blueprint MCP Extension";
+			packageProductDependencies = (
+			);
+			productName = "Blueprint MCP Extension";
+			productReference = 409CA8E32EAE8C1400383296 /* Blueprint MCP Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		409CA8A82EAE8C1300383296 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1620;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					409CA8AF2EAE8C1300383296 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					409CA8CC2EAE8C1400383296 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 409CA8AF2EAE8C1300383296;
+					};
+					409CA8D62EAE8C1400383296 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 409CA8AF2EAE8C1300383296;
+					};
+					409CA8E22EAE8C1400383296 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+				};
+			};
+			buildConfigurationList = 409CA8AB2EAE8C1300383296 /* Build configuration list for PBXProject "Blueprint MCP" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 409CA8A72EAE8C1300383296;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 409CA8B12EAE8C1300383296 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				409CA8AF2EAE8C1300383296 /* Blueprint MCP */,
+				409CA8CC2EAE8C1400383296 /* Blueprint MCPTests */,
+				409CA8D62EAE8C1400383296 /* Blueprint MCPUITests */,
+				409CA8E22EAE8C1400383296 /* Blueprint MCP Extension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		409CA8AE2EAE8C1300383296 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				409CA8BA2EAE8C1300383296 /* Icon.png in Resources */,
+				409CA8C32EAE8C1300383296 /* Main.storyboard in Resources */,
+				409CA8BE2EAE8C1300383296 /* Script.js in Resources */,
+				409CA8B82EAE8C1300383296 /* Main.html in Resources */,
+				409CA8C52EAE8C1400383296 /* Assets.xcassets in Resources */,
+				409CA8BC2EAE8C1300383296 /* Style.css in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		409CA8CB2EAE8C1400383296 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		409CA8D52EAE8C1400383296 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		409CA8E12EAE8C1400383296 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				409CA9032EAE8C1400383296 /* popup.js in Resources */,
+				409CA9062EAE8C1400383296 /* public in Resources */,
+				409CA9052EAE8C1400383296 /* shared in Resources */,
+				409CA9072EAE8C1400383296 /* icons in Resources */,
+				409CA9082EAE8C1400383296 /* manifest.json in Resources */,
+				409CA9092EAE8C1400383296 /* src in Resources */,
+				409CA9042EAE8C1400383296 /* popup.html in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		409CA8AC2EAE8C1300383296 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				409CA8C02EAE8C1300383296 /* ViewController.swift in Sources */,
+				409CA8B42EAE8C1300383296 /* AppDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		409CA8C92EAE8C1400383296 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				409CA8D22EAE8C1400383296 /* Blueprint_MCPTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		409CA8D32EAE8C1400383296 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				409CA8DC2EAE8C1400383296 /* Blueprint_MCPUITests.swift in Sources */,
+				409CA8DE2EAE8C1400383296 /* Blueprint_MCPUITestsLaunchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		409CA8DF2EAE8C1400383296 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				409CA8E92EAE8C1400383296 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		409CA8CF2EAE8C1400383296 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 409CA8AF2EAE8C1300383296 /* Blueprint MCP */;
+			targetProxy = 409CA8CE2EAE8C1400383296 /* PBXContainerItemProxy */;
+		};
+		409CA8D92EAE8C1400383296 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 409CA8AF2EAE8C1300383296 /* Blueprint MCP */;
+			targetProxy = 409CA8D82EAE8C1400383296 /* PBXContainerItemProxy */;
+		};
+		409CA8E62EAE8C1400383296 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 409CA8E22EAE8C1400383296 /* Blueprint MCP Extension */;
+			targetProxy = 409CA8E52EAE8C1400383296 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		409CA8B62EAE8C1300383296 /* Main.html */ = {
+			isa = PBXVariantGroup;
+			children = (
+				409CA8B72EAE8C1300383296 /* Base */,
+			);
+			name = Main.html;
+			sourceTree = "<group>";
+		};
+		409CA8C12EAE8C1300383296 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				409CA8C22EAE8C1300383296 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		409CA8EC2EAE8C1400383296 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		409CA8ED2EAE8C1400383296 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		409CA8EF2EAE8C1400383296 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Blueprint MCP Extension/Blueprint_MCP_Extension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Blueprint MCP Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Blueprint MCP Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.railsblueprint.Blueprint-MCP.Extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		409CA8F02EAE8C1400383296 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Blueprint MCP Extension/Blueprint_MCP_Extension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Blueprint MCP Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Blueprint MCP Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.railsblueprint.Blueprint-MCP.Extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		409CA8F32EAE8C1400383296 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Blueprint MCP/Blueprint MCP.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Blueprint MCP/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Blueprint MCP";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.railsblueprint.Blueprint-MCP";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		409CA8F42EAE8C1400383296 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Blueprint MCP/Blueprint MCP.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Blueprint MCP/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Blueprint MCP";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.railsblueprint.Blueprint-MCP";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		409CA8F62EAE8C1400383296 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.railsblueprint.Blueprint-MCPTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Blueprint MCP.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Blueprint MCP";
+			};
+			name = Debug;
+		};
+		409CA8F72EAE8C1400383296 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.railsblueprint.Blueprint-MCPTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Blueprint MCP.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Blueprint MCP";
+			};
+			name = Release;
+		};
+		409CA8F92EAE8C1400383296 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.railsblueprint.Blueprint-MCPUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = "Blueprint MCP";
+			};
+			name = Debug;
+		};
+		409CA8FA2EAE8C1400383296 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.railsblueprint.Blueprint-MCPUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = "Blueprint MCP";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		409CA8AB2EAE8C1300383296 /* Build configuration list for PBXProject "Blueprint MCP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				409CA8EC2EAE8C1400383296 /* Debug */,
+				409CA8ED2EAE8C1400383296 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		409CA8EE2EAE8C1400383296 /* Build configuration list for PBXNativeTarget "Blueprint MCP Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				409CA8EF2EAE8C1400383296 /* Debug */,
+				409CA8F02EAE8C1400383296 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		409CA8F22EAE8C1400383296 /* Build configuration list for PBXNativeTarget "Blueprint MCP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				409CA8F32EAE8C1400383296 /* Debug */,
+				409CA8F42EAE8C1400383296 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		409CA8F52EAE8C1400383296 /* Build configuration list for PBXNativeTarget "Blueprint MCPTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				409CA8F62EAE8C1400383296 /* Debug */,
+				409CA8F72EAE8C1400383296 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		409CA8F82EAE8C1400383296 /* Build configuration list for PBXNativeTarget "Blueprint MCPUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				409CA8F92EAE8C1400383296 /* Debug */,
+				409CA8FA2EAE8C1400383296 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 409CA8A82EAE8C1300383296 /* Project object */;
+}

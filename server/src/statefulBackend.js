@@ -198,14 +198,29 @@ class StatefulBackend {
         }
       },
       {
+        name: 'browser_list',
+        description: 'List all available browsers connected to the relay (PRO mode only). Use this to see what browsers are available before calling browser_connect to switch.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: []
+        },
+        annotations: {
+          title: 'List available browsers',
+          readOnlyHint: true,
+          destructiveHint: false,
+          openWorldHint: false
+        }
+      },
+      {
         name: 'browser_connect',
-        description: 'Connect to a specific browser when multiple browsers are available (PRO mode only). Called after enable returns a list of browsers to choose from.',
+        description: 'Connect to a specific browser when multiple browsers are available (PRO mode only). Called after enable or browser_list returns a list of browsers to choose from.',
         inputSchema: {
           type: 'object',
           properties: {
             browser_id: {
               type: 'string',
-              description: 'Browser extension ID from the list returned by enable'
+              description: 'Browser extension ID from the list returned by enable or browser_list'
             }
           },
           required: ['browser_id']
@@ -286,6 +301,9 @@ class StatefulBackend {
 
       case 'disable':
         return await this._handleDisable();
+
+      case 'browser_list':
+        return await this._handleBrowserList();
 
       case 'browser_connect':
         return await this._handleBrowserConnect(rawArguments);
@@ -786,6 +804,98 @@ class StatefulBackend {
     };
   }
 
+  async _handleBrowserList() {
+    debugLog('[StatefulBackend] Handling browser_list...');
+
+    // Only works in PRO mode when connected
+    if (this._state !== 'connected' && this._state !== 'authenticated_waiting') {
+      return {
+        content: [{
+          type: 'text',
+          text: `### ⚠️ Not Connected\n\n` +
+                `**Current State:** ${this._state}\n\n` +
+                `\`browser_list\` only works in PRO mode after calling \`enable\`.\n\n` +
+                `**How to use:**\n` +
+                `1. Call \`enable client_id='my-project'\` in PRO mode\n` +
+                `2. Call \`browser_list\` to see available browsers\n` +
+                `3. Call \`browser_connect browser_id='...'\` to switch browsers`
+        }],
+        isError: true
+      };
+    }
+
+    // Must be in PRO mode (proxy mode)
+    if (!this._mcpConnection) {
+      return {
+        content: [{
+          type: 'text',
+          text: `### ⚠️ PRO Mode Only\n\n` +
+                `\`browser_list\` only works in PRO mode (proxy connection).\n\n` +
+                `You are currently in FREE mode (direct local connection).\n\n` +
+                `To use PRO mode:\n` +
+                `1. Call \`auth action='login'\` to authenticate\n` +
+                `2. Call \`enable client_id='my-project'\` without \`force_free=true\``
+        }],
+        isError: true
+      };
+    }
+
+    try {
+      // Get list of available browsers from relay
+      debugLog('[StatefulBackend] Requesting list of extensions from relay...');
+      const result = await this._mcpConnection.sendRequest('list_extensions', {});
+
+      const browsers = result.extensions || [];
+      debugLog(`[StatefulBackend] Found ${browsers.length} browser(s)`);
+
+      // Cache the list for browser_connect
+      this._availableBrowsers = browsers;
+
+      if (browsers.length === 0) {
+        return {
+          content: [{
+            type: 'text',
+            text: `### No Browsers Available\n\n` +
+                  `No browser extensions are currently connected to the relay.\n\n` +
+                  `**To connect a browser:**\n` +
+                  `1. Open Chrome/Firefox with Blueprint MCP extension installed\n` +
+                  `2. Extension should auto-connect to the relay\n` +
+                  `3. Call \`browser_list\` again to see it`
+          }],
+          isError: false
+        };
+      }
+
+      // Format browser list
+      const browserList = browsers.map((browser, index) => {
+        const current = (this._connectedBrowserName === browser.name) ? ' **(CURRENT)**' : '';
+        return `${index + 1}. **${browser.name}**${current}\n   - ID: \`${browser.id}\``;
+      }).join('\n\n');
+
+      return {
+        content: [{
+          type: 'text',
+          text: `### Available Browsers (${browsers.length})\n\n` +
+                `${browserList}\n\n` +
+                `**To switch browsers:**\n` +
+                `\`\`\`\nbrowser_connect browser_id='<id>'\n\`\`\``
+        }],
+        isError: false
+      };
+    } catch (error) {
+      debugLog('[StatefulBackend] Error listing browsers:', error);
+      return {
+        content: [{
+          type: 'text',
+          text: `### Error\n\n` +
+                `Failed to list browsers: ${error.message}\n\n` +
+                `The relay connection may have been lost. Try calling \`disable\` then \`enable\` again.`
+        }],
+        isError: true
+      };
+    }
+  }
+
   async _handleBrowserConnect(args) {
     debugLog('[StatefulBackend] Handling browser_connect...');
 
@@ -805,17 +915,17 @@ class StatefulBackend {
     }
 
     // Check if we're in the right state
-    if (this._state !== 'authenticated_waiting') {
+    if (this._state !== 'authenticated_waiting' && this._state !== 'connected') {
       return {
         content: [{
           type: 'text',
           text: `### ⚠️ Invalid State\n\n` +
                 `**Current State:** ${this._state}\n\n` +
-                `\`browser_connect\` can only be called after \`enable\` returns a list of multiple browsers.\n\n` +
+                `\`browser_connect\` can only be called in PRO mode after authentication.\n\n` +
                 `**Correct Flow:**\n` +
                 `1. Call \`enable client_id='my-project'\`\n` +
-                `2. If multiple browsers found, you'll get a list\n` +
-                `3. Then call \`browser_connect browser_id='...'\``
+                `2. Call \`browser_list\` to see available browsers\n` +
+                `3. Then call \`browser_connect browser_id='...'\` to switch`
         }],
         isError: true
       };
@@ -827,7 +937,7 @@ class StatefulBackend {
         content: [{
           type: 'text',
           text: `### ⚠️ No Browsers Available\n\n` +
-                `No browsers list cached. Please call \`enable\` again.`
+                `No browsers list cached. Please call \`browser_list\` first to see available browsers.`
         }],
         isError: true
       };

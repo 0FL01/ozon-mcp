@@ -16,13 +16,22 @@ export class ConsoleHandler {
     // Console messages storage (per tab)
     this.messages = [];
     this.maxMessages = 1000; // Keep only last 1000 messages
+
+    // Message listener tracking (prevent duplicates)
+    this._messageListenerSetUp = false;
+    this._messageListener = null;
   }
 
   /**
    * Get all captured console messages
+   * @param {number} tabId - Optional tab ID to filter by
    */
-  getMessages() {
-    return this.messages.slice(); // Return copy
+  getMessages(tabId = null) {
+    if (tabId === null) {
+      return this.messages.slice(); // Return copy of all messages
+    }
+    // Filter by tab ID
+    return this.messages.filter(msg => msg.tabId === tabId);
   }
 
   /**
@@ -58,8 +67,52 @@ export class ConsoleHandler {
    */
   async injectConsoleCapture(tabId) {
     try {
+      this.logger.log(`[ConsoleHandler] Injecting console capture into tab ${tabId}`);
+
+      // Use func parameter (CSP-safe) instead of code string (requires eval)
+      // Must pass standalone function, not class method
       await this.browserAdapter.executeScript(tabId, {
-        code: this._generateConsoleCaptureScript()
+        func: function() {
+          // Only inject once
+          if (!window.__blueprintConsoleInjected) {
+            window.__blueprintConsoleInjected = true;
+
+            // Store original console methods
+            const originalConsole = {
+              log: console.log,
+              warn: console.warn,
+              error: console.error,
+              info: console.info,
+              debug: console.debug
+            };
+
+            // Override console methods to capture messages
+            ['log', 'warn', 'error', 'info', 'debug'].forEach(method => {
+              console[method] = function(...args) {
+                // Call original
+                originalConsole[method].apply(console, args);
+
+                // Send to extension
+                const message = {
+                  type: 'console',
+                  level: method,
+                  text: args.map(arg => {
+                    try {
+                      return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+                    } catch (e) {
+                      return String(arg);
+                    }
+                  }).join(' '),
+                  timestamp: Date.now()
+                };
+
+                // Try to send via postMessage (extension will listen)
+                window.postMessage({ __blueprintConsole: message }, '*');
+              };
+            });
+          }
+        },
+        world: 'MAIN'  // Must use MAIN world to override page's console
       });
 
       this.logger.log('[ConsoleHandler] Console capture injected into tab:', tabId);
@@ -69,62 +122,15 @@ export class ConsoleHandler {
   }
 
   /**
-   * Generate the console capture script
-   * @private
-   */
-  _generateConsoleCaptureScript() {
-    return `
-      // Only inject once
-      if (!window.__blueprintConsoleInjected) {
-        window.__blueprintConsoleInjected = true;
-
-        // Store original console methods
-        const originalConsole = {
-          log: console.log,
-          warn: console.warn,
-          error: console.error,
-          info: console.info,
-          debug: console.debug
-        };
-
-        // Override console methods to capture messages
-        ['log', 'warn', 'error', 'info', 'debug'].forEach(method => {
-          console[method] = function(...args) {
-            // Call original
-            originalConsole[method].apply(console, args);
-
-            // Send to extension
-            const message = {
-              type: 'console',
-              level: method,
-              text: args.map(arg => {
-                try {
-                  return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
-                } catch (e) {
-                  return String(arg);
-                }
-              }).join(' '),
-              timestamp: Date.now()
-            };
-
-            // Try to send via postMessage (extension will listen)
-            window.postMessage({ __blueprintConsole: message }, '*');
-          };
-        });
-
-        console.log('[Blueprint MCP] Console capture installed');
-      }
-    `;
-  }
-
-  /**
    * Set up message listener to receive console messages from content script
    * This should be called once during initialization
+   *
+   * Note: Chrome automatically restores listeners on service worker wake,
+   * so we don't need persistent storage guards
    */
   setupMessageListener() {
-    // Note: This would typically be set up in the content script
-    // The background script receives messages via runtime.onMessage
-    this.browser.runtime.onMessage.addListener((message, sender) => {
+    // Store the listener so we can track it
+    this._messageListener = (message, sender) => {
       if (message.type === 'console' && sender.tab) {
         // Add console message with tab info
         this.addMessage({
@@ -135,7 +141,12 @@ export class ConsoleHandler {
           url: sender.url
         });
       }
-    });
+    };
+
+    // Note: This would typically be set up in the content script
+    // The background script receives messages via runtime.onMessage
+    this.browser.runtime.onMessage.addListener(this._messageListener);
+    this._messageListenerSetUp = true;
 
     this.logger.log('[ConsoleHandler] Message listener set up');
   }

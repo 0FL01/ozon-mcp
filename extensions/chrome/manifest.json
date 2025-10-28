@@ -9,7 +9,10 @@
     "activeTab",
     "tabs",
     "storage",
-    "management"
+    "management",
+    "webRequest",
+    "webNavigation",
+    "scripting"
   ],
   "host_permissions": [
     "<all_urls>",
@@ -17,7 +20,7 @@
     "*://*.blueprintmcp.com/*"
   ],
   "background": {
-    "service_worker": "lib/background.mjs",
+    "service_worker": "src/background-module.js",
     "type": "module"
   },
   "action": {
@@ -42,9 +45,10 @@
         "<all_urls>"
       ],
       "js": [
-        "lib/content-script.iife.js"
+        "src/content-script.js"
       ],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "all_frames": false
     }
   ]
 }

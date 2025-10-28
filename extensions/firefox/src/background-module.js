@@ -15,6 +15,7 @@ import { NetworkTracker } from '../shared/handlers/network.js';
 import { DialogHandler } from '../shared/handlers/dialogs.js';
 import { ConsoleHandler } from '../shared/handlers/console.js';
 import { createBrowserAdapter } from '../shared/adapters/browser.js';
+import { wrapWithUnwrap, shouldUnwrap } from '../shared/utils/unwrap.js';
 
 // Main initialization
 (async () => {
@@ -87,12 +88,19 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
   }
 
   // Handle tech stack detection from content script
-  if (message.type === 'techStack' && sender.tab) {
-    logger.log('[Background] Received tech stack:', message.techStack);
-    techStackInfo[sender.tab.id] = message.techStack;
+  if (message.type === 'techStackDetected' && sender.tab) {
+    logger.log('[Background] Received tech stack:', message.stack);
+    techStackInfo[sender.tab.id] = message.stack;
 
     // Update tab handler's tech stack info
-    tabHandlers.setTechStackInfo(sender.tab.id, message.techStack);
+    tabHandlers.setTechStackInfo(sender.tab.id, message.stack);
+  }
+
+  // Handle stealth mode check from content script
+  if (message.type === 'isStealthMode' && sender.tab) {
+    const tabId = sender.tab.id;
+    const isStealthMode = tabHandlers.tabStealthModes[tabId] === true;
+    return { isStealthMode };
   }
 
   // Handle OAuth login success from content script
@@ -153,6 +161,24 @@ wsConnection.registerCommandHandler('selectTab', async (params) => {
 
 wsConnection.registerCommandHandler('closeTab', async () => {
   return await tabHandlers.closeTab();
+});
+
+wsConnection.registerCommandHandler('openTestPage', async () => {
+  // Open test page in new window
+  const testPageUrl = 'https://blueprint-mcp.railsblueprint.com/test-page';
+  const window = await browser.windows.create({
+    url: testPageUrl,
+    type: 'normal',
+    width: 1200,
+    height: 900
+  });
+
+  return {
+    success: true,
+    url: testPageUrl,
+    windowId: window.id,
+    tabId: window.tabs[0].id
+  };
 });
 
 wsConnection.registerCommandHandler('getNetworkRequests', async () => {
@@ -275,9 +301,19 @@ async function handleCDPCommand(params) {
       return { success: true };
 
     case 'Runtime.evaluate': {
-      const expression = cdpParams.expression;
+      let expression = cdpParams.expression;
 
       try {
+        // Wrap expression with method unwrapping if needed (ONLY in stealth mode)
+        // This temporarily restores native DOM methods before execution
+        // to bypass bot detection wrappers, then restores them after
+        // Only enabled in stealth mode to avoid potential side effects
+        const isStealthMode = tabHandlers.tabStealthModes[attachedTabId] === true;
+        if (isStealthMode && shouldUnwrap(expression)) {
+          expression = wrapWithUnwrap(expression);
+          logger.log('[Evaluate] Wrapped expression with unwrap logic (stealth mode)');
+        }
+
         const results = await executeScript(attachedTabId, {
           code: expression
         });

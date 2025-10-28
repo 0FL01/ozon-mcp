@@ -19,6 +19,7 @@ export class WebSocketConnection {
     this.isConnected = false;
     this.isPro = false;
     this.projectName = null;
+    this.connectionUrl = null;
     this.reconnectTimeout = null;
     this.reconnectDelay = 5000; // 5 seconds
 
@@ -63,12 +64,12 @@ export class WebSocketConnection {
     const userInfo = await getUserInfoFromStorage(this.browser);
 
     // Debug: Log what we got from JWT
-    this.logger.logAlways('[WebSocket] User info from JWT:', userInfo);
+    this.logger.log('[WebSocket] User info from JWT:', userInfo);
 
     if (userInfo && userInfo.connectionUrl) {
       // PRO user: use connection URL from JWT token
       this.isPro = true;
-      this.logger.logAlways(`[WebSocket] PRO mode: Connecting to relay server ${userInfo.connectionUrl}`);
+      this.logger.log(`[WebSocket] PRO mode: Connecting to relay server ${userInfo.connectionUrl}`);
 
       // Set isPro flag in storage for popup
       await this.browser.storage.local.set({ isPro: true });
@@ -81,9 +82,9 @@ export class WebSocketConnection {
       const url = `ws://127.0.0.1:${port}/extension`;
 
       this.isPro = false;
-      this.logger.logAlways(`[WebSocket] Free mode: Connecting to ${url}`);
+      this.logger.log(`[WebSocket] Free mode: Connecting to ${url}`);
       if (userInfo) {
-        this.logger.logAlways('[WebSocket] User info found but no connectionUrl - check JWT payload');
+        this.logger.log('[WebSocket] User info found but no connectionUrl - check JWT payload');
       }
 
       // Clear isPro flag in storage
@@ -112,6 +113,7 @@ export class WebSocketConnection {
 
       // Get connection URL (handles PRO vs Free mode)
       const url = await this.getConnectionUrl();
+      this.connectionUrl = url; // Store for logging
 
       // Create WebSocket connection
       this.socket = new WebSocket(url);
@@ -152,6 +154,17 @@ export class WebSocketConnection {
     }
 
     this.isConnected = false;
+
+    // Update icon manager to show disconnected state
+    if (this.iconManager) {
+      this.iconManager.setConnected(false);
+      this.iconManager.setGlobalIcon('normal', 'Disconnected from MCP server');
+    }
+
+    // Notify popup of status change
+    this.browser.runtime.sendMessage({ type: 'statusChanged' }).catch(() => {
+      // Popup may not be open, ignore error
+    });
   }
 
   /**
@@ -169,7 +182,7 @@ export class WebSocketConnection {
    * Handle WebSocket open event
    */
   _handleOpen() {
-    this.logger.log('[WebSocket] Connected');
+    this.logger.logAlways(`Connected to ${this.connectionUrl}`);
     this.isConnected = true;
 
     // Update icon manager
@@ -177,6 +190,11 @@ export class WebSocketConnection {
       this.iconManager.setConnected(true);
       this.iconManager.setGlobalIcon('connected', 'Connected to MCP server');
     }
+
+    // Notify popup of status change
+    this.browser.runtime.sendMessage({ type: 'statusChanged' }).catch(() => {
+      // Popup may not be open, ignore error
+    });
 
     // In PRO mode (relay), don't send handshake - wait for authenticate request
     // In Free mode, send handshake
@@ -256,7 +274,9 @@ export class WebSocketConnection {
       const status = {
         max_connections: params.max_connections,
         connections_used: params.connections_used,
-        connections_to_this_browser: params.connections_to_this_browser
+        connections_to_this_browser: params.connections_to_this_browser,
+        total_browsers: params.total_browsers,
+        total_mcp_clients: params.total_mcp_clients
       };
       await this.browser.storage.local.set({ connectionStatus: status });
       this.logger.log('[WebSocket] Connection status updated:', status);
@@ -328,11 +348,11 @@ export class WebSocketConnection {
     const now = Math.floor(Date.now() / 1000);
     const isExpired = payload && payload.exp && payload.exp < now;
 
-    this.logger.logAlways('[WebSocket] Token check - Expired:', isExpired, 'Expires:', payload?.exp, 'Now:', now);
+    this.logger.log('[WebSocket] Token check - Expired:', isExpired, 'Expires:', payload?.exp, 'Now:', now);
 
     // If token is expired, try to refresh it
     if (isExpired && result.refreshToken) {
-      this.logger.logAlways('[WebSocket] Access token expired, refreshing...');
+      this.logger.log('[WebSocket] Access token expired, refreshing...');
       try {
         const newTokens = await refreshAccessToken(result.refreshToken);
 
@@ -342,14 +362,22 @@ export class WebSocketConnection {
           refreshToken: newTokens.refresh_token
         });
 
-        this.logger.logAlways('[WebSocket] Token refreshed successfully');
+        this.logger.log('[WebSocket] Token refreshed successfully');
         result.accessToken = newTokens.access_token;
       } catch (error) {
         this.logger.logAlways('[WebSocket] Token refresh failed:', error.message);
 
-        // Clear invalid tokens
-        await this.browser.storage.local.remove(['accessToken', 'refreshToken', 'isPro']);
-        throw new Error('Authentication failed: Token expired and refresh failed. Please login again.');
+        // Only clear tokens if refresh token is invalid (401/403)
+        // Keep tokens for network errors or server issues (500, etc.)
+        if (error.status === 401 || error.status === 403) {
+          this.logger.logAlways('[WebSocket] Refresh token invalid - clearing tokens');
+          await this.browser.storage.local.remove(['accessToken', 'refreshToken', 'isPro']);
+          throw new Error('Authentication failed: Token expired and refresh token is invalid. Please login again.');
+        }
+
+        // For other errors (network, 500, etc.), keep tokens and throw error
+        this.logger.logAlways('[WebSocket] Keeping tokens - error may be temporary');
+        throw new Error(`Authentication failed: ${error.message}. Tokens preserved for retry.`);
       }
     } else if (isExpired) {
       this.logger.logAlways('[WebSocket] Token expired and no refresh token available');
@@ -372,7 +400,7 @@ export class WebSocketConnection {
       client_id: clientId
     };
 
-    this.logger.logAlways('[WebSocket] Responding to authenticate request:', JSON.stringify(authResponse, null, 2));
+    this.logger.log('[WebSocket] Responding to authenticate request');
     return authResponse;
   }
 
@@ -393,7 +421,7 @@ export class WebSocketConnection {
    * Handle WebSocket close event
    */
   _handleClose() {
-    this.logger.log('[WebSocket] Disconnected from MCP server');
+    this.logger.logAlways('Disconnected');
     this.isConnected = false;
 
     // Update icon manager
@@ -401,6 +429,11 @@ export class WebSocketConnection {
       this.iconManager.setConnected(false);
       this.iconManager.setGlobalIcon('normal', 'Disconnected from MCP server');
     }
+
+    // Notify popup of status change
+    this.browser.runtime.sendMessage({ type: 'statusChanged' }).catch(() => {
+      // Popup may not be open, ignore error
+    });
 
     // Schedule reconnect
     this._scheduleReconnect();

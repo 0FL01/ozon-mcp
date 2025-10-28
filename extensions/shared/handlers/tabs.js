@@ -16,7 +16,10 @@ export class TabHandlers {
     // Tab state
     this.attachedTabId = null;
     this.attachedTabInfo = null;
-    this.stealthMode = false;
+    this.stealthMode = false; // Current attached tab's stealth mode
+
+    // Per-tab stealth mode tracking
+    this.tabStealthModes = {}; // tabId → boolean
 
     // Tech stack info (shared with other modules)
     this.techStackInfo = {};
@@ -123,8 +126,15 @@ export class TabHandlers {
       active: activate
     });
 
-    // Set stealth mode
+    // Set stealth mode (both current and per-tab)
     this.stealthMode = stealth;
+    this.tabStealthModes[tab.id] = stealth;
+
+    // Store stealth state in storage for content script access
+    if (this.browser.storage && this.browser.storage.session) {
+      await this.browser.storage.session.set({ [`stealth_${tab.id}`]: stealth });
+      this.logger.log(`[TabHandlers] Stored stealth=${stealth} for tab ${tab.id}`);
+    }
 
     // Get all tabs to find the index of the newly created tab
     const allTabs = await this.browser.tabs.query({});
@@ -155,7 +165,14 @@ export class TabHandlers {
       await this.dialogInjector(tab.id);
     }
 
-    return { tab: { id: tab.id, title: tab.title, url: tab.url } };
+    return {
+      tab: {
+        id: tab.id,
+        title: tab.title,
+        url: tab.url,
+        techStack: this.techStackInfo[tab.id] || null
+      }
+    };
   }
 
   /**
@@ -201,8 +218,15 @@ export class TabHandlers {
       await this.iconManager.clearBadge(oldTabId);
     }
 
-    // Set stealth mode
+    // Set stealth mode (both current and per-tab)
     this.stealthMode = stealth;
+    this.tabStealthModes[selectedTab.id] = stealth;
+
+    // Store stealth state in storage for content script access
+    if (this.browser.storage && this.browser.storage.session) {
+      await this.browser.storage.session.set({ [`stealth_${selectedTab.id}`]: stealth });
+      this.logger.log(`[TabHandlers] Stored stealth=${stealth} for tab ${selectedTab.id}`);
+    }
 
     // Attach to this tab
     this.attachedTabId = selectedTab.id;
@@ -229,7 +253,14 @@ export class TabHandlers {
       await this.dialogInjector(selectedTab.id);
     }
 
-    return { tab: { id: selectedTab.id, title: selectedTab.title, url: selectedTab.url } };
+    return {
+      tab: {
+        id: selectedTab.id,
+        title: selectedTab.title,
+        url: selectedTab.url,
+        techStack: this.techStackInfo[selectedTab.id] || null
+      }
+    };
   }
 
   /**
@@ -241,9 +272,19 @@ export class TabHandlers {
       throw new Error('No tab attached');
     }
 
+    const closingTabId = this.attachedTabId;
+
     await this.browser.tabs.remove(this.attachedTabId);
     this.attachedTabId = null;
     this.attachedTabInfo = null;
+
+    // Clean up per-tab stealth mode
+    delete this.tabStealthModes[closingTabId];
+
+    // Clean up storage
+    if (this.browser.storage && this.browser.storage.session) {
+      await this.browser.storage.session.remove(`stealth_${closingTabId}`);
+    }
 
     // Update icon manager
     if (this.iconManager) {
@@ -270,5 +311,13 @@ export class TabHandlers {
 
     // Clean up tech stack info
     delete this.techStackInfo[tabId];
+
+    // Clean up per-tab stealth mode
+    delete this.tabStealthModes[tabId];
+
+    // Clean up storage
+    if (this.browser.storage && this.browser.storage.session) {
+      await this.browser.storage.session.remove(`stealth_${tabId}`);
+    }
   }
 }

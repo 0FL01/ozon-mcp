@@ -504,11 +504,45 @@ class UnifiedBackend {
       // Try to auto-reconnect if browser is disconnected
       const reconnected = await this._autoReconnectIfNeeded();
       if (!reconnected && this._statefulBackend && this._statefulBackend._browserDisconnected) {
-        // Reconnect failed, return error
+        // Reconnect failed - check if we can list browsers
+        const mcpConnection = this._statefulBackend._proxyConnection;
+        let errorText = `### Browser Disconnected\n\nThe browser extension was disconnected (likely due to extension reload).\n\n`;
+
+        // Try to list available browsers
+        try {
+          if (mcpConnection && mcpConnection._connected) {
+            const browsersResult = await mcpConnection.sendRequest('list_extensions', {}, 5000);
+            const browsers = browsersResult.extensions || [];
+
+            if (browsers.length === 0) {
+              errorText += `**No browsers currently connected to relay.**\n\n`;
+              errorText += `**Please:**\n1. Check that the extension is running and enabled\n2. Check that it shows "Connected" in the popup\n3. Then try this command again`;
+            } else if (browsers.length === 1) {
+              errorText += `**Found 1 browser:** ${browsers[0].name}\n\n`;
+              errorText += `Reconnection to this browser failed. **Please try:**\n`;
+              errorText += `1. Reload the extension: chrome://extensions/ → Reload\n`;
+              errorText += `2. Wait a few seconds\n`;
+              errorText += `3. Try this command again (auto-reconnect will retry)`;
+            } else {
+              errorText += `**Found ${browsers.length} browsers:**\n`;
+              browsers.forEach((b, i) => {
+                errorText += `${i + 1}. ${b.name} (${b.id})\n`;
+              });
+              errorText += `\n**Please reconnect:**\n`;
+              errorText += `Use \`browser_connect\` to select which browser to use.`;
+            }
+          } else {
+            errorText += `**Relay connection lost.**\n\nPlease call \`disable\` then \`enable\` to reconnect.`;
+          }
+        } catch (err) {
+          errorText += `**Auto-reconnect failed:** ${err.message}\n\n`;
+          errorText += `**Please try:**\n1. Call \`disable\` then \`enable\` to reset\n2. Then \`browser_connect\` to reconnect`;
+        }
+
         const errorResponse = {
           content: [{
             type: 'text',
-            text: `### Auto-Reconnect Failed\n\nAttempted to reconnect to the browser but failed.\n\n**Please try:**\n1. Check if the extension is running\n2. Call \`disable\` then \`enable\` to reset\n3. Then \`browser_connect\` to reconnect`
+            text: errorText
           }],
           isError: true
         };
@@ -616,21 +650,48 @@ class UnifiedBackend {
     } catch (error) {
       debugLog(`Error in ${name}:`, error);
 
-      // Detect no tab attached error (different from extension disconnected)
       const errorMsg = error.message || String(error);
-      if (errorMsg.includes('No active connection')) {
-        debugLog('No tab attached - connection to tab lost');
+
+      // Check if browser disconnected (PRO mode only)
+      if (this._statefulBackend && this._statefulBackend._browserDisconnected) {
+        debugLog('Browser extension disconnected from relay');
 
         const errorResponse = {
           content: [{
             type: 'text',
-            text: `### No Tab Attached\n\nThe browser tab connection was lost (tab was closed or detached).\n\n**To continue:**\n1. Call \`browser_tabs action='list'\` to see available tabs\n2. Call \`browser_tabs action='attach' index=N\` to attach to a tab\n3. Or call \`browser_tabs action='new' url='https://...'\` to create a new tab\n\n**Note:** The browser extension is still connected - only the tab attachment was lost.`
+            text: `### Browser Disconnected\n\n` +
+                  `The browser extension disconnected from the relay (likely due to extension reload).\n\n` +
+                  `**To reconnect:**\n` +
+                  `1. Call \`disable\` to close the current connection\n` +
+                  `2. Call \`enable client_id='...'\` to reconnect\n` +
+                  `3. The extension will auto-reconnect after a few seconds\n\n` +
+                  `**Or** just wait - auto-reconnection is attempting in the background.`
           }],
           isError: true
         };
         return this._addStatusHeader(errorResponse);
       }
 
+      // Generic connection errors (timeout, not connected, etc.)
+      if (errorMsg.includes('Not connected') || errorMsg.includes('timeout') || errorMsg.includes('No active connection')) {
+        debugLog('Connection error:', errorMsg);
+
+        const errorResponse = {
+          content: [{
+            type: 'text',
+            text: `### Connection Error\n\n` +
+                  `${errorMsg}\n\n` +
+                  `**To fix:**\n` +
+                  `1. Call \`disable\` to close the current connection\n` +
+                  `2. Call \`enable client_id='...'\` to reconnect\n` +
+                  `3. Make sure the browser extension is running`
+          }],
+          isError: true
+        };
+        return this._addStatusHeader(errorResponse);
+      }
+
+      // Generic error
       const errorResponse = {
         content: [{
           type: 'text',
@@ -787,6 +848,16 @@ class UnifiedBackend {
         method: 'Page.navigate',
         params: { url: args.url }
       });
+
+      // Update attached tab info with new URL and tech stack
+      if (this._statefulBackend && this._statefulBackend._attachedTab && result) {
+        this._statefulBackend._attachedTab = {
+          ...this._statefulBackend._attachedTab,
+          url: result.url || args.url,
+          title: result.title || this._statefulBackend._attachedTab.title,
+          techStack: result.techStack || null
+        };
+      }
 
       // Use detailed message from extension if available
       const message = result?.message || `Navigated to: ${args.url}`;
@@ -3035,7 +3106,8 @@ class UnifiedBackend {
         ? ` @ ${msg.url}:${msg.lineNumber}`
         : '';
       const timestamp = new Date(msg.timestamp).toLocaleTimeString();
-      return `[${timestamp}] [${msg.type.toUpperCase()}] ${msg.text}${location}`;
+      const level = (msg.level || msg.type || 'log').toUpperCase();
+      return `[${timestamp}] [${level}] ${msg.text}${location}`;
     }).join('\n');
 
     return {
@@ -3346,10 +3418,10 @@ class UnifiedBackend {
       content: [{
         type: 'text',
         text: found
-          ? `### Text Found\n\nText: "${args.text}"`
-          : `### Text Not Found\n\nText: "${args.text}"`
+          ? `### ✓ Text Visible\n\nText: "${args.text}"\n\n**Result:** \`true\``
+          : `### ✗ Text Not Visible\n\nText: "${args.text}"\n\n**Result:** \`false\``
       }],
-      isError: !found
+      isError: false
     };
   }
 
@@ -3375,10 +3447,10 @@ class UnifiedBackend {
       content: [{
         type: 'text',
         text: visible
-          ? `### Element Visible\n\nSelector: ${args.selector}`
-          : `### Element Not Visible\n\nSelector: ${args.selector}`
+          ? `### ✓ Element Visible\n\nSelector: ${args.selector}\n\n**Result:** \`true\``
+          : `### ✗ Element Not Visible\n\nSelector: ${args.selector}\n\n**Result:** \`false\``
       }],
-      isError: !visible
+      isError: false
     };
   }
 

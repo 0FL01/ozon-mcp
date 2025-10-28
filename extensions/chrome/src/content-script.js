@@ -1,37 +1,17 @@
-// Content script to capture console messages and forward to background
-// Listens for console messages from page and sends to extension
+/**
+ * Content script - vanilla JS version
+ * - Watches for OAuth tokens in DOM (login flow)
+ * - Detects tech stack (frameworks, libraries, CSS frameworks)
+ * - Sends tech stack info to background script
+ */
 
-// Logging utility
-function log(...args) {
-  const now = new Date();
-  const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
-  console.log(`[Blueprint MCP for Firefox] ${time} [Content Script]`, ...args);
-}
-
-window.addEventListener('message', (event) => {
-  // Only accept messages from same origin
-  if (event.source !== window) return;
-
-  // Check if it's a console message
-  if (event.data && event.data.__blueprintConsole) {
-    // Forward to background script
-    browser.runtime.sendMessage({
-      type: 'console_message',
-      data: event.data.__blueprintConsole
-    }).catch(err => {
-      // Ignore errors if background isn't listening
-    });
-  }
-});
-
-// Watch for OAuth login tokens on mcp-for-chrome.railsblueprint.com
-// The login page puts tokens in DOM with class 'mcp-extension-tokens'
+// Watch for a div with class 'mcp-extension-tokens' containing data attributes
 const observer = new MutationObserver(() => {
   // Check for focus request
   const focusElement = document.querySelector('.mcp-extension-focus-tab');
   if (focusElement) {
-    log('Focus request detected, focusing tab...');
-    browser.runtime.sendMessage({ type: 'focusTab' });
+    console.log('[Content Script] Focus request detected, focusing tab...');
+    chrome.runtime.sendMessage({ type: 'focusTab' });
     // Don't disconnect - we still need to watch for tokens
   }
 
@@ -42,15 +22,15 @@ const observer = new MutationObserver(() => {
     const refreshToken = tokenElement.getAttribute('data-refresh-token');
 
     if (accessToken && refreshToken) {
-      log('Found tokens in DOM, sending to background...');
+      console.log('[Content Script] Found tokens in DOM, sending to background...');
 
       // Send to background script
-      browser.runtime.sendMessage({
+      chrome.runtime.sendMessage({
         type: 'loginSuccess',
         accessToken: accessToken,
         refreshToken: refreshToken
-      }).then((response) => {
-        log('Response from background:', response);
+      }, (response) => {
+        console.log('[Content Script] Response from background:', response);
 
         // Close the window after successful token save
         setTimeout(() => {
@@ -70,9 +50,12 @@ observer.observe(document.documentElement, {
   subtree: true
 });
 
-log('Ready to watch for login tokens');
+// Silently watching for login tokens
 
-// Tech stack detection
+/**
+ * Tech stack detection
+ * Detects frameworks, libraries, CSS frameworks, and dev tools
+ */
 function detectTechStack() {
   const stack = {
     frameworks: [],
@@ -99,7 +82,7 @@ function detectTechStack() {
       stack.frameworks.push('Vue');
       stack.spa = true;
     }
-    if (window.ng || (typeof window.getAllAngularRootElements === 'function')) {
+    if (window.ng || typeof window.getAllAngularRootElements === 'function') {
       stack.frameworks.push('Angular');
       stack.spa = true;
     }
@@ -107,11 +90,11 @@ function detectTechStack() {
     if (window.Turbo ||
         document.querySelector('turbo-frame') ||
         document.querySelector('meta[name="turbo-cache-control"]') ||
-        (function() {
+        (() => {
           try {
             const importmap = document.querySelector('script[type="importmap"]');
-            return importmap && (importmap.textContent.includes('@hotwired/turbo') || importmap.textContent.includes('turbo'));
-          } catch(e) { return false; }
+            return importmap?.textContent && (importmap.textContent.includes('@hotwired/turbo') || importmap.textContent.includes('turbo'));
+          } catch { return false; }
         })()) {
       stack.frameworks.push('Turbo');
       stack.spa = true;
@@ -168,8 +151,6 @@ function detectTechStack() {
       stack.css.push('Bootstrap');
     }
     // Tailwind - check for distinctive patterns (avoid Bootstrap false positives)
-    // Tailwind has color utilities with numbers like text-blue-500, bg-red-600
-    // and standalone flex/grid (not Bootstrap's d-flex/d-grid)
     const hasTailwindColors = document.querySelector('[class*="text-"][class*="-500"], [class*="bg-"][class*="-600"], [class*="text-"][class*="-400"], [class*="bg-"][class*="-700"]');
     const hasTailwindUtilities = document.querySelector('[class*="w-full"], [class*="h-screen"], [class*="space-x-"], [class*="divide-"]');
     const bodyClasses = document.body.className;
@@ -184,7 +165,7 @@ function detectTechStack() {
     if (document.querySelector('.button.is-primary') || document.querySelector('.card.is-fullwidth')) {
       stack.css.push('Bulma');
     }
-    // Ant Design - check for actual component classes (avoid false positives like "assistant")
+    // Ant Design - check for actual component classes
     if (document.querySelector('[class^="ant-"], [class*=" ant-"]')) {
       stack.css.push('Ant Design');
     }
@@ -194,11 +175,11 @@ function detectTechStack() {
     if (window.Spark ||
         document.querySelector('script[src*="hotwire_spark"]') ||
         document.querySelector('script[src*="hotwire-spark"]') ||
-        (function() {
+        (() => {
           try {
             const importmap = document.querySelector('script[type="importmap"]');
-            return importmap && (importmap.textContent.includes('@hotwired/spark') || importmap.textContent.includes('hotwire_spark'));
-          } catch(e) { return false; }
+            return importmap?.textContent && (importmap.textContent.includes('@hotwired/spark') || importmap.textContent.includes('hotwire_spark'));
+          } catch { return false; }
         })()) {
       stack.devTools.push('Hotwire Spark');
       stack.autoReload = true;
@@ -221,14 +202,12 @@ function detectTechStack() {
     }
 
     // Check for obfuscated CSS (helps AI know not to guess class names)
-    // Common patterns: _x1a2b, __xyz123, single underscore + random chars
-    // Reuse bodyClasses from Tailwind detection above
     if (bodyClasses && bodyClasses.match(/\b_[a-z0-9]{4,}\b/)) {
       stack.obfuscatedCSS = true;
     }
 
   } catch (error) {
-    log('Error detecting tech stack:', error);
+    console.error('[Content Script] Error detecting tech stack:', error);
   }
 
   return stack;
@@ -238,25 +217,23 @@ function detectTechStack() {
 async function sendTechStackDetection() {
   // Check if stealth mode is enabled for this tab by asking background
   try {
-    const response = await browser.runtime.sendMessage({ type: 'isStealthMode' });
+    const response = await chrome.runtime.sendMessage({ type: 'isStealthMode' });
 
     if (response && response.isStealthMode === true) {
-      log('Stealth mode enabled - skipping tech stack detection');
+      // Stealth mode enabled - skip tech stack detection
       return;
     }
-  } catch (error) {
+  } catch {
     // If we can't check stealth mode, proceed with detection
-    log('Could not check stealth mode:', error);
   }
 
   const stack = detectTechStack();
-  log('Detected tech stack:', stack);
 
-  browser.runtime.sendMessage({
+  chrome.runtime.sendMessage({
     type: 'techStackDetected',
     stack: stack,
     url: window.location.href
-  }).catch(err => {
+  }).catch(() => {
     // Ignore errors if background isn't listening
   });
 }
@@ -277,21 +254,47 @@ new MutationObserver(() => {
   const currentUrl = window.location.href;
   if (currentUrl !== lastUrl) {
     lastUrl = currentUrl;
-    log('URL changed, re-detecting tech stack');
     setTimeout(sendTechStackDetection, 200); // Give SPA time to render
   }
 }).observe(document, { subtree: true, childList: true });
 
 // Also listen for navigation events
 window.addEventListener('popstate', () => {
-  log('Popstate event, re-detecting tech stack');
   setTimeout(sendTechStackDetection, 200);
 });
 
 // Listen for Turbo navigation
 if (window.Turbo) {
   document.addEventListener('turbo:load', () => {
-    log('Turbo load event, re-detecting tech stack');
     setTimeout(sendTechStackDetection, 100);
+  });
+}
+
+/**
+ * Listen for console messages from injected console capture script
+ * The console capture script sends messages via postMessage
+ * Guard against multiple content script executions
+ */
+if (!window.__blueprintContentScriptLoaded) {
+  window.__blueprintContentScriptLoaded = true;
+
+  window.addEventListener('message', (event) => {
+    // Only accept messages from same origin
+    if (event.source !== window) return;
+
+    // Check for console message
+    if (event.data && event.data.__blueprintConsole) {
+      const message = event.data.__blueprintConsole;
+
+      // Forward to background script
+      chrome.runtime.sendMessage({
+        type: 'console',
+        level: message.level,
+        text: message.text,
+        timestamp: message.timestamp
+      }).catch(() => {
+        // Ignore errors if background isn't listening
+      });
+    }
   });
 }

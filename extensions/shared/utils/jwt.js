@@ -35,23 +35,15 @@ export function decodeJWT(token) {
 export async function getUserInfoFromStorage(browserAPI) {
   const result = await browserAPI.storage.local.get(['accessToken']);
 
-  console.log('[JWT] Storage result:', result);
-
   if (!result.accessToken) {
-    console.log('[JWT] No accessToken found in storage');
     return null;
   }
 
-  console.log('[JWT] Found accessToken, decoding...');
   const payload = decodeJWT(result.accessToken);
 
   if (!payload) {
-    console.log('[JWT] Failed to decode JWT');
     return null;
   }
-
-  console.log('[JWT] Decoded payload:', payload);
-  console.log('[JWT] connection_url field:', payload.connection_url);
 
   return {
     email: payload.email || payload.sub || null,
@@ -68,21 +60,25 @@ export async function getUserInfoFromStorage(browserAPI) {
  * @throws {Error} If refresh fails
  */
 export async function refreshAccessToken(refreshToken, apiHost = API_HOST) {
-  console.log('[JWT] Calling refresh token API...');
+  const url = `${apiHost}/api/v1/auth/login`;
+  console.log('[JWT] Calling refresh token API:', url);
 
-  const response = await fetch(`${apiHost}/api/v1/oauth/refresh`, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
+      grant_type: 'refresh_token',
       refresh_token: refreshToken
     })
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Token refresh failed: ${response.status} ${error}`);
+    const err = new Error(`Token refresh failed: ${response.status} ${error}`);
+    err.status = response.status; // Attach status code for caller to check
+    throw err;
   }
 
   const data = await response.json();

@@ -56,9 +56,23 @@ export class IconManager {
    * Update badge for attached tab based on stealth mode
    */
   async updateBadgeForTab() {
-    const state = this.stealthMode ? 'attached-stealth' : 'attached';
+    if (!this.attachedTabId) {
+      this.logger.log('[IconManager] No attached tab, skipping badge update');
+      return;
+    }
+
     const title = this.stealthMode ? 'Tab automated (Stealth Mode)' : 'Tab automated';
-    await this.setGlobalIcon(state, title);
+
+    // Set badge per-tab (not global) with checkmark
+    if (this.stealthMode) {
+      // Black badge for stealth mode
+      await this.updateBadge(this.attachedTabId, { text: '✓', color: '#000000', title });
+    } else {
+      // Blue badge for attached mode
+      await this.updateBadge(this.attachedTabId, { text: '✓', color: '#007AFF', title });
+    }
+
+    this.logger.log('[IconManager] Badge updated for tab:', this.attachedTabId, 'stealth:', this.stealthMode);
   }
 
   /**
@@ -68,45 +82,27 @@ export class IconManager {
    */
   async updateBadge(tabId, { text, color, title }) {
     try {
-      this.logger.logAlways('[IconManager] Setting badge - tabId:', tabId, 'text:', text, 'color:', color, 'title:', title);
+      this.logger.log('[IconManager] Setting badge - tabId:', tabId, 'text:', text, 'color:', color, 'title:', title);
 
-      // Firefox manifest v2 may not support per-tab badges reliably
-      // Try setting globally first, then per-tab
-      try {
-        // Set globally (no tabId)
-        await this._setBadgeText({ text });
-        this.logger.logAlways('[IconManager] setBadgeText (global) succeeded');
-      } catch (e) {
-        this.logger.logAlways('[IconManager] setBadgeText (global) failed:', e.message);
-      }
-
-      // Try per-tab as well
+      // Chrome MV3 supports per-tab badges - set ONLY for specific tab (not global)
       try {
         await this._setBadgeText({ tabId, text });
-        this.logger.logAlways('[IconManager] setBadgeText (per-tab) succeeded');
+        this.logger.log('[IconManager] setBadgeText (per-tab) succeeded');
       } catch (e) {
-        this.logger.logAlways('[IconManager] setBadgeText (per-tab) failed:', e.message);
+        this.logger.log('[IconManager] setBadgeText (per-tab) failed:', e.message);
       }
 
-      // Try setting title globally
-      try {
-        await this._setTitle({ title: title || '' });
-        this.logger.logAlways('[IconManager] setTitle (global) succeeded');
-      } catch (e) {
-        this.logger.logAlways('[IconManager] setTitle (global) failed:', e.message);
-      }
-
-      // Try setting background color globally
+      // Set badge background color per-tab
       if (color) {
         try {
-          await this._setBadgeBackgroundColor({ color });
-          this.logger.logAlways('[IconManager] setBadgeBackgroundColor (global) succeeded');
+          await this._setBadgeBackgroundColor({ tabId, color });
+          this.logger.log('[IconManager] setBadgeBackgroundColor (per-tab) succeeded');
         } catch (e) {
-          this.logger.logAlways('[IconManager] setBadgeBackgroundColor (global) failed:', e.message);
+          this.logger.log('[IconManager] setBadgeBackgroundColor (per-tab) failed:', e.message);
         }
       }
 
-      this.logger.logAlways('[IconManager] Badge update complete');
+      this.logger.log('[IconManager] Badge update complete for tab:', tabId);
     } catch (error) {
       this.logger.logAlways('[IconManager] Badge update error:', error.message, error.stack);
     }
@@ -137,7 +133,7 @@ export class IconManager {
         await this._setTitle({ title });
       }
 
-      this.logger.logAlways('[IconManager] Global badge updated:', text, color, title);
+      this.logger.log('[IconManager] Global badge updated:', text, color, title);
     } catch (error) {
       this.logger.logAlways('[IconManager] Failed to update global badge:', error.message);
     }
@@ -157,19 +153,29 @@ export class IconManager {
    */
   async setGlobalIcon(state, title) {
     try {
-      const iconPath = state === 'connecting'
-        ? 'icons/icon-48-connecting.png'
+      const iconSuffix = state === 'connecting'
+        ? 'connecting'
         : state === 'connected'
-        ? 'icons/icon-48-connected.png'
+        ? 'connected'
         : state === 'attached'
-        ? 'icons/icon-48-attached.png'
+        ? 'attached'
         : state === 'attached-stealth'
-        ? 'icons/icon-48-attached-stealth.png'
-        : 'icons/icon-48.png';
+        ? 'attached-stealth'
+        : '';
+
+      // Chrome MV3 requires path object with sizes
+      // Use getURL to convert relative paths to absolute chrome-extension:// URLs
+      // This is required for service workers which don't have relative path context
+      const iconPath = {
+        "16": this.browser.runtime.getURL(`icons/icon-16${iconSuffix ? '-' + iconSuffix : ''}.png`),
+        "32": this.browser.runtime.getURL(`icons/icon-32${iconSuffix ? '-' + iconSuffix : ''}.png`),
+        "48": this.browser.runtime.getURL(`icons/icon-48${iconSuffix ? '-' + iconSuffix : ''}.png`),
+        "128": this.browser.runtime.getURL(`icons/icon-128${iconSuffix ? '-' + iconSuffix : ''}.png`)
+      };
 
       await this._setIcon({ path: iconPath });
       await this._setTitle({ title: title || 'Blueprint MCP' });
-      this.logger.logAlways('[IconManager] Icon updated:', state, iconPath);
+      this.logger.log('[IconManager] Icon updated:', state);
     } catch (error) {
       this.logger.logAlways('[IconManager] Failed to update icon:', error.message);
     }
