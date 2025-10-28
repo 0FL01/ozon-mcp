@@ -151,6 +151,7 @@ async function main(options) {
   if (global.DEBUG_MODE) {
     logger.enable();
     logger.log('[cli.js] Starting MCP server in PASSIVE mode (no connections)');
+    logger.log('[cli.js] Version:', packageJSON.version);
     logger.log('[cli.js] Use connect tool to activate');
     logger.log('[cli.js] Debug mode: ENABLED');
     logger.log('[cli.js] Log file:', logger.logFilePath);
@@ -165,7 +166,7 @@ async function main(options) {
   const backend = new StatefulBackend(config);
 
   if (global.DEBUG_MODE) {
-    console.error('[cli.js] Creating MCP Server...');
+    console.error(`[cli.js] Creating MCP Server v${packageJSON.version}...`);
   }
 
   // Create MCP Server
