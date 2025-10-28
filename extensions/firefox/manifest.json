@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Blueprint MCP for Firefox",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "description": "Firefox extension for Blueprint MCP - browser automation via Model Context Protocol",
   "permissions": [
     "tabs",
@@ -18,7 +18,9 @@
     "*://*.blueprintmcp.com/*"
   ],
   "background": {
-    "scripts": ["src/background-module.js"],
+    "scripts": [
+      "src/background-module.js"
+    ],
     "type": "module"
   },
   "content_scripts": [

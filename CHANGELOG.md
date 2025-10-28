@@ -1,3 +1,11 @@
+# v1.7.0 (2025-10-28)
+
+## Changes
+
+- Refactor Chrome extension to vanilla JS with shared modules and optimizations (#4)
+- Refactor Firefox extension to Manifest V3 with shared modules (#3)
+
+
 # v1.6.2 (2025-10-26)
 
 ## Changes
