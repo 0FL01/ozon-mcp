@@ -79,6 +79,15 @@ cd ..
 NEW_VERSION=$(node -p "require('./server/package.json').version")
 echo "  ✅ New version: $NEW_VERSION"
 
+# Update root package.json (monorepo)
+echo "  → Updating root package.json..."
+node -e "
+const fs = require('fs');
+const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+pkg.version = '$NEW_VERSION';
+fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+"
+
 # Update Chrome extension
 echo "  → Updating extensions/chrome/package.json..."
 cd extensions/chrome
@@ -197,6 +206,7 @@ echo "💾 Creating release commit..."
 
 # Stage all changes
 git add \
+  package.json \
   server/package.json \
   server/package-lock.json \
   extensions/chrome/package.json \
