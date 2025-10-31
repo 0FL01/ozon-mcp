@@ -10,10 +10,11 @@ import { getUserInfoFromStorage, decodeJWT, refreshAccessToken } from '../utils/
  * Manages WebSocket connections with auto-reconnect, authentication, and message routing
  */
 export class WebSocketConnection {
-  constructor(browserAPI, logger, iconManager) {
+  constructor(browserAPI, logger, iconManager, buildTimestamp = null) {
     this.browser = browserAPI;
     this.logger = logger;
     this.iconManager = iconManager;
+    this.buildTimestamp = buildTimestamp;
 
     this.socket = null;
     this.isConnected = false;
@@ -179,6 +180,34 @@ export class WebSocketConnection {
   }
 
   /**
+   * Send a JSON-RPC notification (no response expected)
+   * @param {string} method - Notification method name
+   * @param {object} params - Notification parameters
+   */
+  sendNotification(method, params) {
+    console.error('[WebSocket sendNotification] Called with method:', method);
+    console.error('[WebSocket sendNotification] Connected:', this.isConnected);
+
+    if (!this.socket || !this.isConnected) {
+      console.error('[WebSocket] ❌ Cannot send notification: not connected');
+      this.logger.error('[WebSocket] Cannot send notification: not connected');
+      return;
+    }
+
+    const message = {
+      jsonrpc: '2.0',
+      method: method,
+      params: params
+    };
+
+    console.error('[WebSocket] Sending notification:', JSON.stringify(message));
+    this.send(message);
+
+    console.error(`[WebSocket] ✅ Sent notification: ${method}`);
+    this.logger.log(`[WebSocket] Sent notification: ${method}`);
+  }
+
+  /**
    * Handle WebSocket open event
    */
   _handleOpen() {
@@ -202,10 +231,22 @@ export class WebSocketConnection {
       this.send({
         type: 'handshake',
         browser: this._getBrowserName(),
-        version: this.browser.runtime.getManifest().version
+        version: this.browser.runtime.getManifest().version,
+        buildTimestamp: this.buildTimestamp
       });
     } else {
       this.logger.log('[WebSocket] PRO mode: Waiting for authenticate request from proxy...');
+
+      // Send build_info notification for PRO mode (Free mode includes it in handshake)
+      if (this.buildTimestamp) {
+        this.send({
+          jsonrpc: '2.0',
+          method: 'build_info',
+          params: {
+            buildTimestamp: this.buildTimestamp
+          }
+        });
+      }
     }
   }
 
@@ -397,7 +438,8 @@ export class WebSocketConnection {
     const authResponse = {
       name: browserName,
       access_token: result.accessToken,
-      client_id: clientId
+      client_id: clientId,
+      buildTimestamp: this.buildTimestamp
     };
 
     this.logger.log('[WebSocket] Responding to authenticate request');

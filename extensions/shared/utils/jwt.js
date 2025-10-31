@@ -29,16 +29,62 @@ export function decodeJWT(token) {
 
 /**
  * Get user info from stored JWT in browser storage
+ * Automatically refreshes expired tokens using refresh token
  * @param {object} browserAPI - Browser API (chrome or browser)
  * @returns {Promise<object|null>} User info or null
  */
 export async function getUserInfoFromStorage(browserAPI) {
-  const result = await browserAPI.storage.local.get(['accessToken']);
+  const result = await browserAPI.storage.local.get(['accessToken', 'refreshToken']);
 
   if (!result.accessToken) {
     return null;
   }
 
+  // Check if token is expired BEFORE using it
+  if (isTokenExpired(result.accessToken)) {
+    console.log('[JWT] Access token expired, attempting refresh...');
+
+    if (!result.refreshToken) {
+      console.log('[JWT] No refresh token available, cannot refresh');
+      return null;
+    }
+
+    try {
+      // Call OAuth API directly to get new tokens (same way server does)
+      const newTokens = await refreshAccessToken(result.refreshToken);
+
+      console.log('[JWT] ✅ Token refreshed successfully');
+
+      // Save new tokens to storage
+      await browserAPI.storage.local.set({
+        accessToken: newTokens.access_token,
+        refreshToken: newTokens.refresh_token,
+        isPro: true
+      });
+
+      // Decode the NEW fresh token
+      const payload = decodeJWT(newTokens.access_token);
+
+      if (!payload) {
+        console.error('[JWT] Failed to decode refreshed token');
+        return null;
+      }
+
+      return {
+        email: payload.email || payload.sub || null,
+        sub: payload.sub,
+        connectionUrl: payload.connection_url || null, // PRO mode relay URL
+      };
+
+    } catch (error) {
+      console.error('[JWT] ❌ Token refresh failed:', error);
+      // Clear invalid tokens on refresh failure
+      await browserAPI.storage.local.remove(['accessToken', 'refreshToken', 'isPro']);
+      return null;
+    }
+  }
+
+  // Token is still valid, decode and return it
   const payload = decodeJWT(result.accessToken);
 
   if (!payload) {

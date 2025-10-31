@@ -15,6 +15,7 @@ class UnifiedBackend {
   constructor(config, transport) {
     this._config = config;
     this._transport = transport;
+    this._lastForcedNodeIds = new Map(); // Cache nodeIds by selector
   }
 
   async initialize(server, clientInfo, statefulBackend) {
@@ -172,7 +173,7 @@ class UnifiedBackend {
       // Interaction
       {
         name: 'browser_interact',
-        description: 'Perform one or more browser interactions in sequence (click, type, press keys, hover, scroll, wait). When clicking on a <select> element, automatically detects it and returns all available options with their selector. Use select_option action to choose an option by value or text. Scroll actions report success/failure and detect all scrollable areas on the page.',
+        description: 'Perform one or more browser interactions in sequence (click, type, press keys, hover, scroll, wait, force pseudo-states). When clicking on a <select> element, automatically detects it and returns all available options with their selector. Use select_option action to choose an option by value or text. Scroll actions report success/failure and detect all scrollable areas on the page. Use force_pseudo_state to permanently force CSS pseudo-states like :hover for testing and screenshots.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -184,13 +185,18 @@ class UnifiedBackend {
                 properties: {
                   type: {
                     type: 'string',
-                    enum: ['click', 'type', 'clear', 'press_key', 'hover', 'wait', 'mouse_move', 'mouse_click', 'scroll_to', 'scroll_by', 'scroll_into_view', 'select_option', 'file_upload'],
+                    enum: ['click', 'type', 'clear', 'press_key', 'hover', 'wait', 'mouse_move', 'mouse_click', 'scroll_to', 'scroll_by', 'scroll_into_view', 'select_option', 'file_upload', 'force_pseudo_state'],
                     description: 'Type of interaction'
                   },
-                  selector: { type: 'string', description: 'CSS selector (for click, type, clear, hover, scroll_to, scroll_by, scroll_into_view, select_option, file_upload). For scroll_to/scroll_by: scrolls the element instead of the window' },
+                  selector: { type: 'string', description: 'CSS selector (for click, type, clear, hover, scroll_to, scroll_by, scroll_into_view, select_option, file_upload, force_pseudo_state). For scroll_to/scroll_by: scrolls the element instead of the window' },
                   text: { type: 'string', description: 'Text to type (for type action)' },
                   key: { type: 'string', description: 'Key to press (for press_key action)' },
                   value: { type: 'string', description: 'Option value or text to select (for select_option action). Matches by value first, then by text if value not found. Case-insensitive for text matching.' },
+                  pseudoStates: {
+                    type: 'array',
+                    items: { type: 'string', enum: ['hover', 'active', 'focus', 'visited', 'focus-within'] },
+                    description: 'Pseudo-states to force (for force_pseudo_state action). Example: ["hover"] or ["hover", "focus"]. Use empty array [] to clear all forced states.'
+                  },
                   files: {
                     type: 'array',
                     items: { type: 'string' },
@@ -249,7 +255,7 @@ class UnifiedBackend {
       // Screenshot
       {
         name: 'browser_take_screenshot',
-        description: 'Capture screenshot of the page (default: JPEG quality 80, viewport only, 1:1 scale). Returns image data if no path provided, saves to file if path is specified.',
+        description: 'Capture screenshot of the page (default: JPEG quality 80, viewport only, 1:1 scale). Supports full page, partial by selector, or partial by coordinates. Returns image data if no path provided, saves to file if path is specified.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -258,7 +264,14 @@ class UnifiedBackend {
             quality: { type: 'number', description: 'JPEG quality 0-100 (default: 80)' },
             path: { type: 'string', description: 'Optional: file path to save screenshot. If provided, saves to disk instead of returning image data.' },
             highlightClickables: { type: 'boolean', description: 'Highlight clickable elements with green border and background (default: false)' },
-            deviceScale: { type: 'number', description: 'Device scale factor for pixel-perfect screenshots (default: 1 for 1:1, use 0 for device native)' }
+            deviceScale: { type: 'number', description: 'Device scale factor for pixel-perfect screenshots (default: 1 for 1:1, use 0 for device native)' },
+            selector: { type: 'string', description: 'CSS selector to screenshot (partial screenshot by element). Red highlight shown automatically after capture.' },
+            padding: { type: 'number', description: 'Padding in pixels around selector (default: 0)' },
+            clip_x: { type: 'number', description: 'Clip X coordinate (for coordinate-based partial screenshot)' },
+            clip_y: { type: 'number', description: 'Clip Y coordinate (for coordinate-based partial screenshot)' },
+            clip_width: { type: 'number', description: 'Clip width in pixels (for coordinate-based partial screenshot)' },
+            clip_height: { type: 'number', description: 'Clip height in pixels (for coordinate-based partial screenshot)' },
+            clip_coordinateSystem: { type: 'string', enum: ['viewport', 'page'], description: 'Coordinate system for clip (default: viewport). "page" converts to viewport coordinates.' }
           }
         }
       },
@@ -803,6 +816,7 @@ class UnifiedBackend {
         this._statefulBackend._stealthMode = args.stealth || false;
       }
 
+
       return {
         content: [{
           type: 'text',
@@ -813,13 +827,13 @@ class UnifiedBackend {
     }
 
     if (action === 'close') {
-      // Close the currently attached tab
+      // Close tab (by index if specified, otherwise currently attached)
       const result = await this._transport.sendCommand('closeTab', {
         index: args.index
       });
 
-      // Clear attached tab info
-      if (this._statefulBackend) {
+      // Only clear attached tab info if we closed the attached tab
+      if (result.closedAttachedTab && this._statefulBackend) {
         this._statefulBackend._attachedTab = null;
         this._statefulBackend._stealthMode = null;
       }
@@ -859,6 +873,7 @@ class UnifiedBackend {
         };
       }
 
+
       // Use detailed message from extension if available
       const message = result?.message || `Navigated to: ${args.url}`;
 
@@ -880,6 +895,39 @@ class UnifiedBackend {
         }
       });
 
+      // Wait for navigation to complete (give it a moment)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Get updated URL and title
+      const urlResult = await this._transport.sendCommand('forwardCDPCommand', {
+        method: 'Runtime.evaluate',
+        params: {
+          expression: 'window.location.href',
+          returnByValue: true
+        }
+      });
+
+      const titleResult = await this._transport.sendCommand('forwardCDPCommand', {
+        method: 'Runtime.evaluate',
+        params: {
+          expression: 'document.title',
+          returnByValue: true
+        }
+      });
+
+      const newUrl = urlResult.result?.value || null;
+      const newTitle = titleResult.result?.value || null;
+
+      // Update attached tab info
+      if (this._statefulBackend && this._statefulBackend._attachedTab && newUrl) {
+        this._statefulBackend._attachedTab = {
+          ...this._statefulBackend._attachedTab,
+          url: newUrl,
+          title: newTitle || this._statefulBackend._attachedTab.title
+        };
+      }
+
+
       return {
         content: [{
           type: 'text',
@@ -898,6 +946,39 @@ class UnifiedBackend {
         }
       });
 
+      // Wait for navigation to complete (give it a moment)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Get updated URL and title
+      const urlResult = await this._transport.sendCommand('forwardCDPCommand', {
+        method: 'Runtime.evaluate',
+        params: {
+          expression: 'window.location.href',
+          returnByValue: true
+        }
+      });
+
+      const titleResult = await this._transport.sendCommand('forwardCDPCommand', {
+        method: 'Runtime.evaluate',
+        params: {
+          expression: 'document.title',
+          returnByValue: true
+        }
+      });
+
+      const newUrl = urlResult.result?.value || null;
+      const newTitle = titleResult.result?.value || null;
+
+      // Update attached tab info
+      if (this._statefulBackend && this._statefulBackend._attachedTab && newUrl) {
+        this._statefulBackend._attachedTab = {
+          ...this._statefulBackend._attachedTab,
+          url: newUrl,
+          title: newTitle || this._statefulBackend._attachedTab.title
+        };
+      }
+
+
       return {
         content: [{
           type: 'text',
@@ -913,6 +994,7 @@ class UnifiedBackend {
         params: {}
       });
 
+
       return {
         content: [{
           type: 'text',
@@ -926,10 +1008,28 @@ class UnifiedBackend {
       // Open test page in a new window via extension
       const result = await this._transport.sendCommand('openTestPage', {});
 
+      // Wait for the page to load
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Get all tabs to find the newly created tab with updated URL
+      const tabsResult = await this._transport.sendCommand('getTabs', {});
+      const newTab = tabsResult.tabs.find(t => t.id === result.tabId);
+
+      if (newTab && this._statefulBackend) {
+        // Auto-attach to the new tab with loaded URL/title from tab info
+        this._statefulBackend._attachedTab = {
+          id: newTab.id,
+          title: newTab.title,
+          url: newTab.url,
+          index: newTab.index,
+          techStack: null
+        };
+      }
+
       return {
         content: [{
           type: 'text',
-          text: `### Opened Test Page\n\nNew window created with test page\nURL: ${result.url}\nTab ID: ${result.tab?.id}`
+          text: `### Opened Test Page\n\nNew window created with test page\nURL: ${newTab?.url || result.url}\nTab ID: ${result.tabId}\n\n**Auto-attached to new tab (index ${newTab?.index})**`
         }],
         isError: false
       };
@@ -1514,7 +1614,8 @@ class UnifiedBackend {
               }
             });
 
-            await this._transport.sendCommand('forwardCDPCommand', {
+            // Capture response from mouseReleased - it contains side effects
+            const clickResponse = await this._transport.sendCommand('forwardCDPCommand', {
               method: 'Input.dispatchMouseEvent',
               params: {
                 type: 'mouseReleased',
@@ -1523,6 +1624,25 @@ class UnifiedBackend {
                 clickCount: action.clickCount || 1
               }
             });
+
+            // Update attached tab info if navigation occurred (like Page.navigate does)
+            if (clickResponse.sideEffects?.navigation && this._statefulBackend?._attachedTab) {
+              const nav = clickResponse.sideEffects.navigation;
+              this._statefulBackend._attachedTab = {
+                ...this._statefulBackend._attachedTab,
+                url: nav.to,
+                title: nav.title,
+                techStack: nav.techStack || null
+              };
+            } else if (clickResponse.url && this._statefulBackend?._attachedTab) {
+              // Even if no navigation side effect, update with current URL/title
+              this._statefulBackend._attachedTab = {
+                ...this._statefulBackend._attachedTab,
+                url: clickResponse.url,
+                title: clickResponse.title,
+                techStack: clickResponse.techStack || this._statefulBackend._attachedTab.techStack
+              };
+            }
 
             // Get page scroll position to calculate absolute page coordinates
             const scrollInfo = await this._transport.sendCommand('forwardCDPCommand', {
@@ -1540,6 +1660,35 @@ class UnifiedBackend {
             result = `Clicked ${action.selector} at viewport(${Math.round(x)}, ${Math.round(y)}) page(${pageX}, ${pageY})`;
             if (warning) {
               result += ` ⚠️ ${warning}`;
+            }
+
+            // Add side effects to result message if any occurred
+            if (clickResponse.sideEffects) {
+              const effects = clickResponse.sideEffects;
+
+              if (effects.navigation) {
+                result += `\n\n**Navigation triggered:**\n- From: ${effects.navigation.from}\n- To: ${effects.navigation.to}`;
+                if (effects.navigation.techStack) {
+                  result += `\n- Tech stack: ${JSON.stringify(effects.navigation.techStack)}`;
+                }
+              }
+
+              if (effects.newTabs && effects.newTabs.length > 0) {
+                result += `\n\n**New tabs/windows:**`;
+                effects.newTabs.forEach((tab, i) => {
+                  result += `\n${i + 1}. ${tab.status === 'blocked' ? '🚫 Blocked' : '✅ Opened'}: ${tab.url || 'about:blank'}`;
+                });
+              }
+
+              if (effects.dialogs && effects.dialogs.length > 0) {
+                result += `\n\n**Dialogs shown:**`;
+                effects.dialogs.forEach((dialog, i) => {
+                  result += `\n${i + 1}. ${dialog.type}("${dialog.message}")`;
+                  if (dialog.response !== undefined) {
+                    result += ` → ${dialog.response}`;
+                  }
+                });
+              }
             }
             break;
           }
@@ -1873,7 +2022,8 @@ class UnifiedBackend {
               }
             });
 
-            await this._transport.sendCommand('forwardCDPCommand', {
+            // Capture response from mouseReleased - it contains side effects
+            const clickResponse = await this._transport.sendCommand('forwardCDPCommand', {
               method: 'Input.dispatchMouseEvent',
               params: {
                 type: 'mouseReleased',
@@ -1884,6 +2034,25 @@ class UnifiedBackend {
               }
             });
 
+            // Update attached tab info if navigation occurred (like Page.navigate does)
+            if (clickResponse.sideEffects?.navigation && this._statefulBackend?._attachedTab) {
+              const nav = clickResponse.sideEffects.navigation;
+              this._statefulBackend._attachedTab = {
+                ...this._statefulBackend._attachedTab,
+                url: nav.to,
+                title: nav.title,
+                techStack: nav.techStack || null
+              };
+            } else if (clickResponse.url && this._statefulBackend?._attachedTab) {
+              // Even if no navigation side effect, update with current URL/title
+              this._statefulBackend._attachedTab = {
+                ...this._statefulBackend._attachedTab,
+                url: clickResponse.url,
+                title: clickResponse.title,
+                techStack: clickResponse.techStack || this._statefulBackend._attachedTab.techStack
+              };
+            }
+
             result = `Clicked at (${action.x}, ${action.y})`;
 
             // Add element info if found
@@ -1892,6 +2061,35 @@ class UnifiedBackend {
               result += ` - found ${elementInfo.selector}`;
               if (elementInfo.text) {
                 result += ` "${elementInfo.text}"`;
+              }
+            }
+
+            // Add side effects to result message if any occurred
+            if (clickResponse.sideEffects) {
+              const effects = clickResponse.sideEffects;
+
+              if (effects.navigation) {
+                result += `\n\n**Navigation triggered:**\n- From: ${effects.navigation.from}\n- To: ${effects.navigation.to}`;
+                if (effects.navigation.techStack) {
+                  result += `\n- Tech stack: ${JSON.stringify(effects.navigation.techStack)}`;
+                }
+              }
+
+              if (effects.newTabs && effects.newTabs.length > 0) {
+                result += `\n\n**New tabs/windows:**`;
+                effects.newTabs.forEach((tab, i) => {
+                  result += `\n${i + 1}. ${tab.status === 'blocked' ? '🚫 Blocked' : '✅ Opened'}: ${tab.url || 'about:blank'}`;
+                });
+              }
+
+              if (effects.dialogs && effects.dialogs.length > 0) {
+                result += `\n\n**Dialogs shown:**`;
+                effects.dialogs.forEach((dialog, i) => {
+                  result += `\n${i + 1}. ${dialog.type}("${dialog.message}")`;
+                  if (dialog.response !== undefined) {
+                    result += ` → ${dialog.response}`;
+                  }
+                });
               }
             }
 
@@ -2168,6 +2366,130 @@ class UnifiedBackend {
             });
 
             result = `Uploaded ${files.length} file(s) to ${action.selector}`;
+            break;
+          }
+
+          case 'force_pseudo_state': {
+            // Process selector (preprocess + validate)
+            const processedSelector = this._processSelector(action.selector);
+            const selectorExpr = this._getSelectorExpression(processedSelector);
+            const pseudoStates = action.pseudoStates || ['hover'];
+
+            // Enable DOM and CSS domains (idempotent - safe to call multiple times)
+            await this._transport.sendCommand('forwardCDPCommand', {
+              method: 'DOM.enable',
+              params: {}
+            });
+
+            await this._transport.sendCommand('forwardCDPCommand', {
+              method: 'CSS.enable',
+              params: {}
+            });
+
+            let nodeIds = [];
+
+            // CLEARING: Use cached nodeIds WITHOUT calling DOM.getDocument
+            if (pseudoStates.length === 0) {
+              const cachedNodeIds = this._lastForcedNodeIds.get(action.selector);
+              if (!cachedNodeIds || cachedNodeIds.length === 0) {
+                throw new Error(`No cached nodeIds found for ${action.selector}. You must force a pseudo-state before clearing it.`);
+              }
+
+              nodeIds = cachedNodeIds;
+
+              // Clear pseudo-states using cached nodeIds
+              for (const nodeId of nodeIds) {
+                await this._transport.sendCommand('forwardCDPCommand', {
+                  method: 'CSS.forcePseudoState',
+                  params: {
+                    nodeId: nodeId,
+                    forcedPseudoClasses: []
+                  }
+                });
+              }
+
+              // Clean up cache
+              this._lastForcedNodeIds.delete(action.selector);
+
+              result = `Cleared forced pseudo-states on ${nodeIds.length} element(s) matching ${action.selector} (cached nodeIds: ${nodeIds.join(', ')})`;
+            }
+            // FORCING: Get fresh nodeIds and cache them
+            else {
+              // Use JavaScript to find all matching elements and get their nodeIds
+              const setupResult = await this._transport.sendCommand('forwardCDPCommand', {
+                method: 'Runtime.evaluate',
+                params: {
+                  expression: `
+                    (function() {
+                      const elements = document.querySelectorAll(${JSON.stringify(action.selector)});
+                      const timestamp = Date.now();
+                      elements.forEach((el, i) => {
+                        el.setAttribute('data-mcp-pseudo-' + timestamp, i);
+                      });
+                      return { count: elements.length, timestamp: timestamp };
+                    })()
+                  `,
+                  returnByValue: true
+                }
+              });
+
+              const elementCount = setupResult.result?.value?.count || 0;
+              const timestamp = setupResult.result?.value?.timestamp;
+
+              if (elementCount === 0) {
+                throw new Error(`Element not found: ${action.selector}`);
+              }
+
+              // Get document root (this invalidates old nodeIds, but we're forcing new state so it's ok)
+              const docResult = await this._transport.sendCommand('forwardCDPCommand', {
+                method: 'DOM.getDocument',
+                params: { depth: 0 }
+              });
+
+              // Query each element by its temporary attribute
+              for (let i = 0; i < elementCount; i++) {
+                const queryResult = await this._transport.sendCommand('forwardCDPCommand', {
+                  method: 'DOM.querySelector',
+                  params: {
+                    nodeId: docResult.root.nodeId,
+                    selector: `[data-mcp-pseudo-${timestamp}="${i}"]`
+                  }
+                });
+
+                if (queryResult.nodeId && queryResult.nodeId !== 0) {
+                  nodeIds.push(queryResult.nodeId);
+                }
+              }
+
+              // Force pseudo-states
+              for (const nodeId of nodeIds) {
+                await this._transport.sendCommand('forwardCDPCommand', {
+                  method: 'CSS.forcePseudoState',
+                  params: {
+                    nodeId: nodeId,
+                    forcedPseudoClasses: pseudoStates
+                  }
+                });
+              }
+
+              // Clean up temporary attributes
+              await this._transport.sendCommand('forwardCDPCommand', {
+                method: 'Runtime.evaluate',
+                params: {
+                  expression: `
+                    document.querySelectorAll('[data-mcp-pseudo-${timestamp}]').forEach(el => {
+                      el.removeAttribute('data-mcp-pseudo-${timestamp}');
+                    });
+                  `
+                }
+              });
+
+              // Cache nodeIds for later clearing
+              this._lastForcedNodeIds.set(action.selector, nodeIds);
+
+              result = `Forced pseudo-state ${pseudoStates.join(', ')} on ${nodeIds.length} element(s) matching ${action.selector} (nodeIds: ${nodeIds.join(', ')})`;
+            }
+
             break;
           }
 
@@ -2934,13 +3256,30 @@ class UnifiedBackend {
     }
 
     // Capture screenshot at device native resolution, we'll downscale locally if needed
+    const screenshotParams = {
+      format: format,
+      quality: format === 'jpeg' ? quality : undefined,  // Quality only applies to JPEG
+      captureBeyondViewport: args.fullPage || false
+    };
+
+    // Pass through partial screenshot parameters if provided
+    if (args.selector) {
+      screenshotParams.selector = args.selector;
+      screenshotParams.padding = args.padding;
+    } else if (args.clip_x !== undefined && args.clip_y !== undefined && args.clip_width !== undefined && args.clip_height !== undefined) {
+      // Construct clip object from flattened parameters
+      screenshotParams.clip = {
+        x: args.clip_x,
+        y: args.clip_y,
+        width: args.clip_width,
+        height: args.clip_height,
+        coordinateSystem: args.clip_coordinateSystem || 'viewport'
+      };
+    }
+
     const result = await this._transport.sendCommand('forwardCDPCommand', {
       method: 'Page.captureScreenshot',
-      params: {
-        format: format,
-        quality: format === 'jpeg' ? quality : undefined,  // Quality only applies to JPEG
-        captureBeyondViewport: args.fullPage || false
-      }
+      params: screenshotParams
     });
 
     // Remove clickable overlay if it was added
@@ -2966,7 +3305,9 @@ class UnifiedBackend {
     let dimensions = sizeOf(buffer);
 
     // Downscale if needed for 1:1 screenshots
-    if (deviceScale > 0 && deviceScale < (viewport.devicePixelRatio || 1) && !args.fullPage) {
+    // IMPORTANT: Only resize full viewport screenshots, not partial screenshots (selector/clip)
+    const isPartialScreenshot = args.selector || (args.clip_x !== undefined);
+    if (deviceScale > 0 && deviceScale < (viewport.devicePixelRatio || 1) && !args.fullPage && !isPartialScreenshot) {
       const sharp = require('sharp');
       const targetWidth = Math.round(viewport.width * deviceScale);
       const targetHeight = Math.round(viewport.height * deviceScale);
@@ -3130,8 +3471,19 @@ class UnifiedBackend {
             (() => {
               const el = document.querySelector(${JSON.stringify(field.selector)});
               if (!el) throw new Error('Element not found: ${field.selector}');
-              el.value = ${JSON.stringify(field.value)};
-              el.dispatchEvent(new Event('input', { bubbles: true }));
+
+              // Handle checkboxes and radio buttons
+              if (el.type === 'checkbox' || el.type === 'radio') {
+                // Convert value to boolean
+                const value = ${JSON.stringify(field.value)};
+                el.checked = (value === true || value === 'true' || value === 'on' || value === 'checked');
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+              } else {
+                // Handle text inputs, selects, textareas, etc.
+                el.value = ${JSON.stringify(field.value)};
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+
               return { success: true };
             })()
           `,
@@ -3165,7 +3517,8 @@ class UnifiedBackend {
       }
     });
 
-    await this._transport.sendCommand('forwardCDPCommand', {
+    // Capture response from mouseReleased - it contains side effects
+    const clickResponse = await this._transport.sendCommand('forwardCDPCommand', {
       method: 'Input.dispatchMouseEvent',
       params: {
         type: 'mouseReleased',
@@ -3176,10 +3529,60 @@ class UnifiedBackend {
       }
     });
 
+    // Update attached tab info if navigation occurred (like Page.navigate does)
+    if (clickResponse.sideEffects?.navigation && this._statefulBackend?._attachedTab) {
+      const nav = clickResponse.sideEffects.navigation;
+      this._statefulBackend._attachedTab = {
+        ...this._statefulBackend._attachedTab,
+        url: nav.to,
+        title: nav.title,
+        techStack: nav.techStack || null
+      };
+    } else if (clickResponse.url && this._statefulBackend?._attachedTab) {
+      // Even if no navigation side effect, update with current URL/title
+      this._statefulBackend._attachedTab = {
+        ...this._statefulBackend._attachedTab,
+        url: clickResponse.url,
+        title: clickResponse.title,
+        techStack: clickResponse.techStack || this._statefulBackend._attachedTab.techStack
+      };
+    }
+
+    let resultText = `### Clicked at Coordinates\n\nX: ${args.x}, Y: ${args.y}`;
+
+    // Add side effects to result message if any occurred
+    if (clickResponse.sideEffects) {
+      const effects = clickResponse.sideEffects;
+
+      if (effects.navigation) {
+        resultText += `\n\n**Navigation triggered:**\n- From: ${effects.navigation.from}\n- To: ${effects.navigation.to}`;
+        if (effects.navigation.techStack) {
+          resultText += `\n- Tech stack: ${JSON.stringify(effects.navigation.techStack)}`;
+        }
+      }
+
+      if (effects.newTabs && effects.newTabs.length > 0) {
+        resultText += `\n\n**New tabs/windows:**`;
+        effects.newTabs.forEach((tab, i) => {
+          resultText += `\n${i + 1}. ${tab.status === 'blocked' ? '🚫 Blocked' : '✅ Opened'}: ${tab.url || 'about:blank'}`;
+        });
+      }
+
+      if (effects.dialogs && effects.dialogs.length > 0) {
+        resultText += `\n\n**Dialogs shown:**`;
+        effects.dialogs.forEach((dialog, i) => {
+          resultText += `\n${i + 1}. ${dialog.type}("${dialog.message}")`;
+          if (dialog.response !== undefined) {
+            resultText += ` → ${dialog.response}`;
+          }
+        });
+      }
+    }
+
     return {
       content: [{
         type: 'text',
-        text: `### Clicked at Coordinates\n\nX: ${args.x}, Y: ${args.y}`
+        text: resultText
       }],
       isError: false
     };
@@ -3600,12 +4003,50 @@ class UnifiedBackend {
       }
 
       // Add request body if present
+      let bodyText = '';
+
       if (req.requestBody) {
+        // Handle different requestBody formats (CDP string vs webRequest object)
+        if (typeof req.requestBody === 'string') {
+          // CDP format - already a string
+          bodyText = req.requestBody;
+        } else if (typeof req.requestBody === 'object' && req.requestBody !== null) {
+          // webRequest format - convert object to string
+          if (req.requestBody.formData) {
+            // Form data - convert to readable format
+            const formEntries = Object.entries(req.requestBody.formData)
+              .map(([key, values]) => `${key}=${values.join(', ')}`)
+              .join('\n');
+            bodyText = `Form Data:\n${formEntries}`;
+          } else if (req.requestBody.raw) {
+            // Raw bytes - convert to string
+            bodyText = JSON.stringify(req.requestBody.raw);
+          } else {
+            bodyText = JSON.stringify(req.requestBody);
+          }
+        }
+      } else if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+        // Try to fetch POST data via CDP for requests without requestBody
+        const isWebRequestOnly = /^\d+$/.test(req.requestId);
+
+        if (!isWebRequestOnly) {
+          try {
+            const postDataResult = await this._transport.sendCommand('getRequestPostData', { requestId: req.requestId });
+            if (postDataResult.postData && !postDataResult.error) {
+              bodyText = postDataResult.postData;
+            }
+          } catch (error) {
+            debugLog(`Could not fetch POST data for ${req.requestId}:`, error);
+          }
+        }
+      }
+
+      if (bodyText) {
         try {
-          const parsed = JSON.parse(req.requestBody);
+          const parsed = JSON.parse(bodyText);
           details += `\n\n**Request Body:**\n\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\``;
         } catch {
-          details += `\n\n**Request Body:**\n\`\`\`\n${req.requestBody.substring(0, 1000)}${req.requestBody.length > 1000 ? '\n...(truncated)' : ''}\n\`\`\``;
+          details += `\n\n**Request Body:**\n\`\`\`\n${bodyText.substring(0, 1000)}${bodyText.length > 1000 ? '\n...(truncated)' : ''}\n\`\`\``;
         }
       }
 
@@ -3622,10 +4063,19 @@ class UnifiedBackend {
       }
 
       // Fetch response body if available
+      const isWebRequestOnly = /^\d+$/.test(req.requestId);
+
       if (req.statusCode && req.statusCode >= 200 && req.statusCode < 400) {
-        try {
-          const bodyResult = await this._transport.sendCommand('getResponseBody', { requestId: req.requestId });
-          if (bodyResult.body && !bodyResult.error) {
+        if (isWebRequestOnly) {
+          // webRequest-only request - show helpful message
+          details += `\n\n**Response Body:** _Not available_`;
+          details += `\n\n_💡 **Tip:** This request was captured before CDP Network tracking was enabled. To see response bodies:_`;
+          details += `\n_1. Reload the page with \`browser_navigate action='reload'\`_`;
+          details += `\n_2. New requests will have hex IDs (like \`9C74...\`) and include response bodies_`;
+        } else {
+          try {
+            const bodyResult = await this._transport.sendCommand('getResponseBody', { requestId: req.requestId });
+            if (bodyResult.body && !bodyResult.error) {
             let body = bodyResult.body;
             // Decode base64 if needed
             if (bodyResult.base64Encoded) {
@@ -3656,9 +4106,10 @@ class UnifiedBackend {
           } else if (bodyResult.error) {
             details += `\n\n_Response body unavailable: ${bodyResult.error}_`;
           }
-        } catch (error) {
-          details += `\n\n_Could not fetch response body: ${error.message}_`;
-          debugLog(`Could not fetch response body for ${req.requestId}:`, error);
+          } catch (error) {
+            details += `\n\n_Could not fetch response body: ${error.message}_`;
+            debugLog(`Could not fetch response body for ${req.requestId}:`, error);
+          }
         }
       }
 
@@ -3695,6 +4146,37 @@ class UnifiedBackend {
         };
       }
 
+      // Check if this is a webRequest-only request (simple numeric ID)
+      const isWebRequestOnly = /^\d+$/.test(req.requestId);
+
+      if (isWebRequestOnly) {
+        return {
+          content: [{
+            type: 'text',
+            text: `### ⚠️ Cannot Replay This Request
+
+**Request ID:** \`${req.requestId}\`
+**URL:** ${req.url}
+
+This request was captured by the browser extension's background tracker (webRequest API) before CDP Network tracking was enabled.
+
+**How to fix:**
+1. Reload the current page with \`browser_navigate action='reload'\`
+2. Or navigate to a new page with \`browser_navigate action='url' url='...'\`
+3. New requests will be captured with CDP and will be replayable
+
+**Why this happens:**
+- Network tracking captures requests in two ways:
+  - webRequest API: Always running, captures all requests
+  - CDP Network: Only after tab attach, enables response body access and replay
+- This request was captured before CDP was enabled
+- CDP-captured requests have hex IDs like \`9C74166D40F279588AC00ECBB021909D\`
+- webRequest-captured requests have numeric IDs like \`${req.requestId}\``
+          }],
+          isError: true
+        };
+      }
+
       try {
         // Use CDP Fetch domain to replay the request
         // First enable Fetch domain
@@ -3705,15 +4187,32 @@ class UnifiedBackend {
           }
         });
 
-        // Construct the fetch request
-        const fetchParams = {
-          url: req.url,
-          method: req.method,
-          headers: Object.entries(req.requestHeaders || {}).map(([name, value]) => ({ name, value })),
-        };
-
+        // Normalize request body to string format
+        let bodyString = null;
         if (req.requestBody) {
-          fetchParams.postData = req.requestBody;
+          if (typeof req.requestBody === 'string') {
+            bodyString = req.requestBody;
+          } else if (typeof req.requestBody === 'object' && req.requestBody !== null) {
+            // Convert webRequest format to string
+            if (req.requestBody.formData) {
+              // Convert form data to URL-encoded string
+              const formParams = Object.entries(req.requestBody.formData)
+                .map(([key, values]) => `${encodeURIComponent(key)}=${encodeURIComponent(values[0])}`)
+                .join('&');
+              bodyString = formParams;
+            } else {
+              bodyString = JSON.stringify(req.requestBody);
+            }
+          }
+        }
+
+        // Build fetch options
+        const fetchOptions = {
+          method: req.method,
+          headers: req.requestHeaders
+        };
+        if (bodyString) {
+          fetchOptions.body = bodyString;
         }
 
         // Execute using Runtime.evaluate to use fetch API
@@ -3722,11 +4221,7 @@ class UnifiedBackend {
           params: {
             expression: `
               (async () => {
-                const response = await fetch(${JSON.stringify(req.url)}, ${JSON.stringify({
-                  method: req.method,
-                  headers: req.requestHeaders,
-                  body: req.requestBody || undefined
-                })});
+                const response = await fetch(${JSON.stringify(req.url)}, ${JSON.stringify(fetchOptions)});
                 const text = await response.text();
                 return {
                   status: response.status,
@@ -3747,16 +4242,23 @@ class UnifiedBackend {
           params: {}
         });
 
+        // Log the eval result for debugging
+        debugLog('Replay evalResult:', JSON.stringify(evalResult, null, 2));
+
         if (evalResult.result && evalResult.result.value) {
           const replay = evalResult.result.value;
-          let resultText = `### Request Replayed\n\n**${req.method} ${req.url}**\n\n**Response:**\nStatus: ${replay.status} ${replay.statusText}`;
+          let resultText = `### Request Replayed\n\n**${req.method} ${req.url}**\n\n**Response:**\nStatus: ${replay.status || 'unknown'} ${replay.statusText || ''}`;
 
           // Try to parse body as JSON
-          try {
-            const parsed = JSON.parse(replay.body);
-            resultText += `\n\n**Body:**\n\`\`\`json\n${JSON.stringify(parsed, null, 2).substring(0, 2000)}${JSON.stringify(parsed, null, 2).length > 2000 ? '\n...(truncated)' : ''}\n\`\`\``;
-          } catch {
-            resultText += `\n\n**Body:**\n\`\`\`\n${replay.body.substring(0, 1000)}${replay.body.length > 1000 ? '\n...(truncated)' : ''}\n\`\`\``;
+          if (replay.body) {
+            try {
+              const parsed = JSON.parse(replay.body);
+              resultText += `\n\n**Body:**\n\`\`\`json\n${JSON.stringify(parsed, null, 2).substring(0, 2000)}${JSON.stringify(parsed, null, 2).length > 2000 ? '\n...(truncated)' : ''}\n\`\`\``;
+            } catch {
+              resultText += `\n\n**Body:**\n\`\`\`\n${replay.body.substring(0, 1000)}${replay.body.length > 1000 ? '\n...(truncated)' : ''}\n\`\`\``;
+            }
+          } else {
+            resultText += `\n\n**Body:** _Empty or unavailable_`;
           }
 
           return {
@@ -3766,6 +4268,8 @@ class UnifiedBackend {
             }],
             isError: false
           };
+        } else if (evalResult.exceptionDetails) {
+          throw new Error(`JavaScript error: ${evalResult.exceptionDetails.text || JSON.stringify(evalResult.exceptionDetails)}`);
         } else {
           throw new Error('No result from fetch evaluation');
         }
@@ -3866,10 +4370,14 @@ class UnifiedBackend {
       extensionName: args.extensionName
     });
 
+    const reloadedList = result.reloaded || [];
+    const count = reloadedList.length;
+    const names = reloadedList.join(', ') || 'None';
+
     return {
       content: [{
         type: 'text',
-        text: `### Extensions Reloaded\n\nReloaded: ${result.reloadedCount}\nExtensions: ${result.reloadedExtensions?.join(', ')}`
+        text: `### Extensions Reloaded\n\n**Count:** ${count}\n**Extensions:** ${names}`
       }],
       isError: false
     };

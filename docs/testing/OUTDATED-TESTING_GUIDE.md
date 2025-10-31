@@ -198,6 +198,370 @@ This document provides comprehensive testing procedures for all available MCP to
 - Test page fully loaded with all sections
 - Window positioned and sized appropriately
 
+#### Test 3.6: Click-Triggered Navigation (Side Effect Detection)
+
+**Setup:** First navigate to the side effects test page
+
+**Command to load test page:**
+```json
+{
+  "action": "url",
+  "url": "chrome-extension://[extension-id]/test-side-effects.html"
+}
+```
+
+**Test 3.6.1: Simple Link Navigation**
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#nav-link"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- Click executes successfully
+- **Navigation side effect detected:**
+  - From: test-side-effects.html
+  - To: form-result.html
+  - Tech stack shown (if detected)
+- **Status line updates** to show new URL
+- Response includes: `**Navigation triggered:**`
+
+**Test 3.6.2: Button-Triggered Navigation**
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#nav-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- Button click triggers navigation via JavaScript
+- Side effect detected and reported
+- Status line shows updated URL
+- Navigation details in response message
+
+**Test 3.6.3: External Navigation**
+
+**Setup:** Navigate back to test-side-effects.html first
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#external-link"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- Navigates to example.org
+- Side effect shows from → to URLs
+- Status line reflects new domain
+- Waits for navigation to complete (up to 5 seconds)
+
+**What to Verify:**
+- ✅ Navigation detected even when triggered by click (not browser_navigate)
+- ✅ Status line updates immediately with new URL
+- ✅ Response message includes navigation details
+- ✅ Tech stack detection works for navigated page
+- ✅ Works for both link clicks and JavaScript navigation
+
+---
+
+## 3A. Click Side Effects Detection
+
+**Purpose:** Verify comprehensive side effect detection when clicks trigger navigation, dialogs, popups, or other effects.
+
+**Setup:** Navigate to side effects test page:
+```json
+{
+  "action": "url",
+  "url": "chrome-extension://[extension-id]/test-side-effects.html"
+}
+```
+
+### Dialog Side Effects
+
+#### Test 3A.1: Alert Detection
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#alert-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- Click succeeds
+- Alert automatically handled (dismissed)
+- **Dialog side effect detected:**
+  ```
+  **Dialogs shown:**
+  1. alert("This is a test alert!")
+  ```
+- No user intervention needed
+
+#### Test 3A.2: Confirm Detection
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#confirm-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- Confirm automatically accepted
+- Side effect shows:
+  ```
+  **Dialogs shown:**
+  1. confirm("Do you want to continue?") → true
+  ```
+- Response value (true) included
+
+#### Test 3A.3: Prompt Detection
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#prompt-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- Prompt automatically filled
+- Shows prompt text and response:
+  ```
+  **Dialogs shown:**
+  1. prompt("Enter your name:") → Claude
+  ```
+
+#### Test 3A.4: Multiple Dialogs
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#multi-dialog-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- All dialogs detected and handled
+- Response shows all three:
+  ```
+  **Dialogs shown:**
+  1. alert("First alert")
+  2. confirm("Then a confirm") → true
+  3. prompt("Finally a prompt") → test
+  ```
+
+### Popup/New Tab Side Effects
+
+#### Test 3A.5: Popup Window Detection (Blocked)
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#popup-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- Popup likely blocked by browser
+- Side effect detected:
+  ```
+  **New tabs/windows:**
+  1. 🚫 Blocked: https://example.com
+  ```
+- Shows blocked status
+
+#### Test 3A.6: New Tab Link (target=_blank)
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#new-tab-link"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- New tab opens successfully
+- Side effect detected:
+  ```
+  **New tabs/windows:**
+  1. ✅ Opened: https://example.com
+  ```
+- Shows tab ID and URL
+
+#### Test 3A.7: Multiple Popups
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#multi-popup-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- All popup attempts detected
+- Each listed with status (opened/blocked)
+- Multiple entries in newTabs array
+
+### Combined Side Effects
+
+#### Test 3A.8: Dialog + Navigation Combo
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#dialog-nav-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- Both side effects detected:
+  ```
+  **Navigation triggered:**
+  - From: test-side-effects.html
+  - To: form-result.html
+
+  **Dialogs shown:**
+  1. confirm("Navigate to form result page?") → true
+  ```
+
+#### Test 3A.9: Multiple Side Effect Types
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#combo-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- All three side effect types detected:
+  - Navigation (to form-result.html)
+  - Dialog (alert)
+  - New tab/popup attempt
+- Complete summary in response
+
+### Control Tests (No Side Effects)
+
+#### Test 3A.10: Button with No Action
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#no-op-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- Click succeeds
+- **No side effects detected** (sideEffects: null)
+- Response shows simple click confirmation
+- Status line unchanged
+
+#### Test 3A.11: Console Log Only
+
+**Command:**
+```json
+{
+  "actions": [
+    {
+      "type": "click",
+      "selector": "#console-button"
+    }
+  ]
+}
+```
+
+**Expected Result:**
+- Logs to console
+- No side effects detected
+- Normal click response
+
+**What to Verify Across All Tests:**
+- ✅ Navigation side effects update status line immediately
+- ✅ Dialog side effects show type, message, and response
+- ✅ Popup side effects distinguish opened vs blocked
+- ✅ Multiple side effects all detected in single click
+- ✅ Control tests show no false positives
+- ✅ All side effects included in response message
+- ✅ Tech stack detection works with navigation
+- ✅ Status line shows current URL after navigation
+
+**Known Timing:**
+- 200ms initial wait to detect side effects
+- Up to 5 seconds to wait for navigation completion
+- Immediate detection for dialogs (handled synchronously)
+
 ---
 
 ## 4. Interactions

@@ -26,6 +26,7 @@ class ExtensionServer {
     this.onTabInfoUpdate = null; // Callback when tab info changes (for status header updates)
     this._clientId = null; // MCP client_id to display in extension
     this._browserType = 'chrome'; // Browser type: 'chrome' or 'firefox'
+    this._buildTimestamp = null; // Extension build timestamp
   }
 
   /**
@@ -33,6 +34,13 @@ class ExtensionServer {
    */
   getBrowserType() {
     return this._browserType;
+  }
+
+  /**
+   * Get extension build timestamp
+   */
+  getBuildTimestamp() {
+    return this._buildTimestamp;
   }
 
   /**
@@ -138,7 +146,8 @@ class ExtensionServer {
       if (message.type === 'handshake') {
         debugLog('Handshake received:', message);
         this._browserType = message.browser || 'chrome';
-        debugLog(`Browser type detected: ${this._browserType}`);
+        this._buildTimestamp = message.buildTimestamp || null;
+        debugLog(`Browser type detected: ${this._browserType}, Build timestamp: ${this._buildTimestamp}`);
         return;
       }
 

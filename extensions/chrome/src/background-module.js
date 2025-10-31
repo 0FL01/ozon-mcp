@@ -17,12 +17,99 @@ import { ConsoleHandler } from '../../shared/handlers/console.js';
 import { createBrowserAdapter } from '../../shared/adapters/browser.js';
 import { wrapWithUnwrap, shouldUnwrap } from '../../shared/utils/unwrap.js';
 
-// Main initialization
-(async () => {
-
-// Initialize browser adapter
+// Initialize browser adapter at top level (before async IIFE)
 const browserAdapter = createBrowserAdapter();
 const chrome = browserAdapter.getRawAPI();
+
+// Top-level variables for tab monitoring
+let tabHandlers = null;
+let wsConnection = null;
+
+// Write to storage immediately to confirm script is loading
+chrome.storage.local.set({
+  backgroundScriptLoaded: {
+    timestamp: new Date().toISOString(),
+    message: 'Background script loaded successfully!'
+  }
+});
+
+// Register tabs.onUpdated listener at TOP LEVEL (not inside async function)
+// This ensures it persists through service worker suspensions in MV3
+console.error('[Background] ⚡ Registering tabs.onUpdated listener at TOP LEVEL...');
+
+// Also write to storage to confirm listener is being registered
+chrome.storage.local.set({
+  listenerRegistered: {
+    timestamp: new Date().toISOString(),
+    message: 'tabs.onUpdated listener registered!'
+  }
+});
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // Check if tabHandlers is initialized yet
+  if (!tabHandlers) {
+    console.error('[DEBUG tabs.onUpdated] tabHandlers not initialized yet, skipping');
+    return;
+  }
+
+  const attachedTabId = tabHandlers.getAttachedTabId();
+
+  // Log EVERY event with full details
+  console.error('[DEBUG tabs.onUpdated] ⚡ FIRED! tabId:', tabId, 'attached:', attachedTabId, 'match:', tabId === attachedTabId);
+  console.error('[DEBUG tabs.onUpdated] changeInfo:', JSON.stringify(changeInfo));
+  console.error('[DEBUG tabs.onUpdated] tab.url:', tab.url);
+
+  // Write to storage for debugging - log EVERY onUpdated event
+  await chrome.storage.local.set({
+    lastOnUpdatedEvent: {
+      tabId,
+      changeInfo,
+      attachedTabId,
+      timestamp: new Date().toISOString()
+    }
+  });
+
+  // Debug: Log every URL change
+  if (changeInfo.url) {
+    console.error('[DEBUG tabs.onUpdated] Tab', tabId, 'URL changed to:', changeInfo.url);
+    console.error('[DEBUG tabs.onUpdated] Attached tab ID:', attachedTabId);
+    console.error('[DEBUG tabs.onUpdated] Match:', tabId === attachedTabId);
+
+    // Write to storage for debugging
+    await chrome.storage.local.set({
+      lastNavigation: {
+        tabId,
+        attachedTabId,
+        url: changeInfo.url,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+
+  // Only notify if this is the attached tab and URL changed
+  if (tabId === attachedTabId && changeInfo.url && wsConnection) {
+    console.error('[Background] ✅ Attached tab navigated to:', changeInfo.url);
+    console.error('[Background] Sending notification to server...');
+
+    // Send notification to server about URL change
+    // Relay server will forward this to MCP server
+    wsConnection.sendNotification('notifications/tab_info_update', {
+      currentTab: {
+        id: tab.id,
+        title: tab.title,
+        url: tab.url,
+        index: null, // Index not available in onUpdated
+        techStack: null // Will be detected later
+      }
+    });
+
+    console.error('[Background] Notification sent!');
+  }
+});
+console.error('[Background] ✅ tabs.onUpdated listener registered at TOP LEVEL!');
+
+// Main initialization
+(async () => {
 
 // Note: Use browserAdapter.executeScript instead of defining a local executeScript
 // The browserAdapter version properly handles both 'func' and 'code' parameters
@@ -34,9 +121,22 @@ await logger.init(chrome);
 const manifest = chrome.runtime.getManifest();
 logger.logAlways(`Blueprint MCP v${manifest.version}`);
 
+// Read build timestamp (read once at startup)
+let buildTimestamp = null;
+try {
+  const buildInfoUrl = chrome.runtime.getURL('build-info.json');
+  /* global fetch */
+  const response = await fetch(buildInfoUrl);
+  const buildInfo = await response.json();
+  buildTimestamp = buildInfo.timestamp;
+  logger.log(`Build timestamp: ${buildTimestamp}`);
+} catch (e) {
+  logger.log('Could not read build-info.json:', e.message);
+}
+
 // Initialize all managers and handlers
 const iconManager = new IconManager(chrome, logger);
-const tabHandlers = new TabHandlers(chrome, logger, iconManager);
+tabHandlers = new TabHandlers(chrome, logger, iconManager);
 const networkTracker = new NetworkTracker(chrome, logger);
 const dialogHandler = new DialogHandler(browserAdapter, logger);
 const consoleHandler = new ConsoleHandler(browserAdapter, logger);
@@ -60,6 +160,10 @@ let techStackInfo = {}; // Stores detected tech stack per tab
 let debuggerAttached = false; // Track if debugger is attached to current tab
 let currentDebuggerTabId = null; // Track which tab has debugger attached
 
+// CDP Network tracking storage
+const cdpNetworkRequests = new Map(); // Stores CDP network requests by requestId
+const MAX_CDP_REQUESTS = 500; // Keep only last 500 requests
+
 // Set up keepalive alarm (Chrome-specific - prevents service worker suspension)
 if (chrome.alarms) {
   chrome.alarms.create('keepalive', { periodInMinutes: 1 });
@@ -69,6 +173,77 @@ if (chrome.alarms) {
     }
   });
 }
+
+// Set up CDP debugger event listener for Network events
+chrome.debugger.onEvent.addListener((source, method, params) => {
+  // Only track Network events
+  if (!method.startsWith('Network.')) return;
+
+  // Only track events for the currently attached tab
+  if (!currentDebuggerTabId || source.tabId !== currentDebuggerTabId) return;
+
+  try {
+    switch (method) {
+      case 'Network.requestWillBeSent': {
+        const requestId = params.requestId;
+        const request = params.request;
+        const type = params.type || 'other';
+
+        cdpNetworkRequests.set(requestId, {
+          requestId,
+          url: request.url,
+          method: request.method,
+          requestHeaders: request.headers,
+          type,
+          timestamp: params.timestamp || Date.now() / 1000
+        });
+
+        // Limit storage size
+        if (cdpNetworkRequests.size > MAX_CDP_REQUESTS) {
+          const firstKey = cdpNetworkRequests.keys().next().value;
+          cdpNetworkRequests.delete(firstKey);
+        }
+        break;
+      }
+
+      case 'Network.responseReceived': {
+        const requestId = params.requestId;
+        const response = params.response;
+
+        const existing = cdpNetworkRequests.get(requestId);
+        if (existing) {
+          existing.statusCode = response.status;
+          existing.statusText = response.statusText;
+          existing.responseHeaders = response.headers;
+          existing.mimeType = response.mimeType;
+        }
+        break;
+      }
+
+      case 'Network.loadingFinished': {
+        const requestId = params.requestId;
+        const existing = cdpNetworkRequests.get(requestId);
+        if (existing) {
+          existing.finished = true;
+          existing.encodedDataLength = params.encodedDataLength;
+        }
+        break;
+      }
+
+      case 'Network.loadingFailed': {
+        const requestId = params.requestId;
+        const existing = cdpNetworkRequests.get(requestId);
+        if (existing) {
+          existing.failed = true;
+          existing.errorText = params.errorText;
+        }
+        break;
+      }
+    }
+  } catch (error) {
+    logger.log(`[Background] Error handling CDP Network event ${method}:`, error);
+  }
+});
 
 // Set up console message listener from content script
 // Use sendResponse callback pattern for Chrome Manifest V3 compatibility
@@ -140,7 +315,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Initialize WebSocket connection
-const wsConnection = new WebSocketConnection(chrome, logger, iconManager);
+wsConnection = new WebSocketConnection(chrome, logger, iconManager, buildTimestamp);
 
 // Helper function to ensure debugger is attached to current tab
 async function ensureDebuggerAttached() {
@@ -171,6 +346,18 @@ async function ensureDebuggerAttached() {
     debuggerAttached = true;
     currentDebuggerTabId = attachedTabId;
     logger.log(`[Background] Attached debugger to tab ${attachedTabId}`);
+
+    // Enable Network domain for CDP network tracking
+    try {
+      await chrome.debugger.sendCommand(
+        { tabId: attachedTabId },
+        'Network.enable',
+        {}
+      );
+      logger.log(`[Background] Enabled Network domain for tab ${attachedTabId}`);
+    } catch (netError) {
+      logger.log(`[Background] Warning: Could not enable Network domain: ${netError.message}`);
+    }
   } catch (error) {
     debuggerAttached = false;
     currentDebuggerTabId = null;
@@ -300,50 +487,358 @@ async function handleCDPCommand(cdpMethod, cdpParams) {
       return await handleKeyEvent(cdpParams);
 
     case 'DOM.querySelector': {
+      // Use real Chrome debugger DOM APIs for true nodeIds
       const selector = cdpParams.selector;
+      const nodeId = cdpParams.nodeId || 1; // Default to document root
 
       try {
-        const results = await browserAdapter.executeScript(attachedTabId, {
-          func: (selector) => {
-            const el = document.querySelector(selector);
-            if (!el) return null;
+        await ensureDebuggerAttached();
 
-            const rect = el.getBoundingClientRect();
-            return {
-              nodeId: 1,
-              backendNodeId: 1,
-              exists: true,
-              visible: rect.width > 0 && rect.height > 0,
-              x: rect.x,
-              y: rect.y,
-              width: rect.width,
-              height: rect.height
-            };
-          },
-          args: [selector]
-        });
+        // Query selector using real Chrome debugger
+        const result = await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'DOM.querySelector',
+          { nodeId, selector }
+        );
 
-        return { nodeId: results[0]?.nodeId || null, info: results[0] };
+        return { nodeId: result.nodeId || 0 };
       } catch (error) {
-        return { nodeId: null, error: error.message };
+        return { nodeId: 0, error: error.message };
+      }
+    }
+
+    case 'DOM.enable': {
+      // Enable DOM domain in Chrome debugger
+      await ensureDebuggerAttached();
+
+      try {
+        await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'DOM.enable',
+          {}
+        );
+        return {};
+      } catch {
+        // DOM may already be enabled, ignore errors
+        return {};
+      }
+    }
+
+    case 'CSS.enable': {
+      // Enable CSS domain in Chrome debugger
+      await ensureDebuggerAttached();
+
+      try {
+        await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'CSS.enable',
+          {}
+        );
+        return {};
+      } catch {
+        // CSS may already be enabled, ignore errors
+        return {};
+      }
+    }
+
+    case 'Network.enable': {
+      // Enable Network domain in Chrome debugger
+      await ensureDebuggerAttached();
+
+      try {
+        await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'Network.enable',
+          {}
+        );
+        return {};
+      } catch {
+        // Network may already be enabled, ignore errors
+        return {};
+      }
+    }
+
+    case 'Network.getResponseBody': {
+      // Get response body for a network request
+      await ensureDebuggerAttached();
+
+      try {
+        const result = await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'Network.getResponseBody',
+          { requestId: cdpParams.requestId }
+        );
+        return result;
+      } catch (error) {
+        return { error: error.message };
+      }
+    }
+
+    case 'Network.getRequestPostData': {
+      // Get POST data for a network request
+      await ensureDebuggerAttached();
+
+      try {
+        const result = await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'Network.getRequestPostData',
+          { requestId: cdpParams.requestId }
+        );
+        return { postData: result.postData };
+      } catch (error) {
+        return { error: error.message };
+      }
+    }
+
+    case 'Fetch.enable': {
+      // Enable Fetch domain in Chrome debugger for request interception
+      await ensureDebuggerAttached();
+
+      try {
+        await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'Fetch.enable',
+          cdpParams || {}
+        );
+        return {};
+      } catch (error) {
+        return { error: error.message };
+      }
+    }
+
+    case 'Fetch.disable': {
+      // Disable Fetch domain in Chrome debugger
+      await ensureDebuggerAttached();
+
+      try {
+        await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'Fetch.disable',
+          {}
+        );
+        return {};
+      } catch (error) {
+        return { error: error.message };
+      }
+    }
+
+    case 'DOM.getDocument': {
+      // Get real document from Chrome debugger
+      await ensureDebuggerAttached();
+
+      try {
+        const result = await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'DOM.getDocument',
+          { depth: cdpParams.depth || 0 }
+        );
+        return result;
+      } catch (error) {
+        throw new Error(`Failed to get document: ${error.message}`);
+      }
+    }
+
+    case 'CSS.forcePseudoState': {
+      // Force pseudo-state on element using CDP
+      await ensureDebuggerAttached();
+
+      const params = {
+        nodeId: cdpParams.nodeId,
+        forcedPseudoClasses: cdpParams.forcedPseudoClasses || []
+      };
+
+      try {
+        await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'CSS.forcePseudoState',
+          params
+        );
+        return {};
+      } catch (error) {
+        throw new Error(`Failed to force pseudo-state: ${error.message}`);
       }
     }
 
     case 'Page.captureScreenshot': {
       const format = cdpParams.format || 'jpeg';
       const quality = cdpParams.quality !== undefined ? cdpParams.quality : 80;
-      // fullPage parameter not currently used - Chrome doesn't support full page screenshots via captureVisibleTab
+      const clip = cdpParams.clip; // Optional: {x, y, width, height, scale, coordinateSystem: 'viewport'|'page'}
+      const selector = cdpParams.selector; // Optional: CSS selector to screenshot
+      const padding = cdpParams.padding || 0; // Optional: padding around selector (px)
 
       try {
-        const dataUrl = await chrome.tabs.captureVisibleTab(null, {
-          format: format === 'jpeg' ? 'jpeg' : 'png',
-          quality: format === 'jpeg' ? quality : undefined
-        });
+        // Use Chrome Debugger Protocol for screenshots (works on non-visible tabs!)
+        await ensureDebuggerAttached();
 
-        // Remove data URL prefix
-        const base64Data = dataUrl.split(',')[1];
+        let finalClip = null;
 
-        return { data: base64Data };
+        // Option 1: Screenshot by selector (get element bounds)
+        if (selector) {
+          // Find element and get its bounding box
+          const evalResult = await chrome.debugger.sendCommand(
+            { tabId: attachedTabId },
+            'Runtime.evaluate',
+            {
+              expression: `
+                (function() {
+                  const el = document.querySelector(${JSON.stringify(selector)});
+                  if (!el) return null;
+                  const rect = el.getBoundingClientRect();
+                  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+                  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+                  return {
+                    x: rect.left,
+                    y: rect.top,
+                    width: rect.width,
+                    height: rect.height,
+                    pageX: rect.left + scrollX,
+                    pageY: rect.top + scrollY
+                  };
+                })()
+              `,
+              returnByValue: true
+            }
+          );
+
+          if (!evalResult.result.value) {
+            throw new Error(`Element not found: ${selector}`);
+          }
+
+          const bounds = evalResult.result.value;
+
+          // Apply padding
+          finalClip = {
+            x: Math.max(0, bounds.x - padding),
+            y: Math.max(0, bounds.y - padding),
+            width: bounds.width + (padding * 2),
+            height: bounds.height + (padding * 2),
+            scale: 1
+          };
+        }
+        // Option 2: Screenshot by coordinates
+        else if (clip) {
+          const coordinateSystem = clip.coordinateSystem || 'viewport';
+
+          if (coordinateSystem === 'page') {
+            // Convert page coordinates to viewport coordinates
+            const scrollResult = await chrome.debugger.sendCommand(
+              { tabId: attachedTabId },
+              'Runtime.evaluate',
+              {
+                expression: `({x: window.pageXOffset || document.documentElement.scrollLeft, y: window.pageYOffset || document.documentElement.scrollTop})`,
+                returnByValue: true
+              }
+            );
+            const scroll = scrollResult.result.value;
+
+            finalClip = {
+              x: Number(clip.x) - scroll.x,
+              y: Number(clip.y) - scroll.y,
+              width: Number(clip.width),
+              height: Number(clip.height),
+              scale: Number(clip.scale) || 1
+            };
+          } else {
+            // Use viewport coordinates as-is
+            finalClip = {
+              x: Number(clip.x) || 0,
+              y: Number(clip.y) || 0,
+              width: Number(clip.width),
+              height: Number(clip.height),
+              scale: Number(clip.scale) || 1
+            };
+          }
+        }
+
+        const params = {
+          format: format,
+          quality: format === 'jpeg' ? quality : undefined,
+          captureBeyondViewport: false
+          // Note: fromSurface: false not allowed when using Debugger API
+        };
+
+        if (finalClip) {
+          params.clip = finalClip;
+        }
+
+        // Capture screenshot (NO highlight yet - it will show AFTER)
+        const result = await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'Page.captureScreenshot',
+          params
+        );
+
+        // Show the actual screenshot AFTER capture with 500ms delay and fade animation
+        if (finalClip && result.data) {
+          const borderWidth = 3;
+          const adjustedX = finalClip.x - borderWidth;
+          const adjustedY = finalClip.y - borderWidth;
+
+          setTimeout(async () => {
+            try {
+              await chrome.debugger.sendCommand(
+                { tabId: attachedTabId },
+                'Runtime.evaluate',
+                {
+                  expression: `
+                    (function() {
+                      const container = document.createElement('div');
+                      container.id = 'mcp-screenshot-preview-' + Date.now();
+                      container.style.cssText = \`
+                        position: fixed;
+                        left: ${adjustedX}px;
+                        top: ${adjustedY}px;
+                        width: ${finalClip.width}px;
+                        height: ${finalClip.height}px;
+                        z-index: 2147483647;
+                        pointer-events: none;
+                        opacity: 1;
+                        transform: scale(1.2);
+                        transform-origin: center center;
+                        transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+                        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+                      \`;
+
+                      const img = document.createElement('img');
+                      img.src = 'data:image/${format};base64,${result.data}';
+                      img.style.cssText = \`
+                        width: 100%;
+                        height: 100%;
+                        border: 3px solid #4CAF50;
+                        box-sizing: content-box;
+                        border-radius: 4px;
+                        transition: border-color 0.3s ease-in-out;
+                        display: block;
+                      \`;
+
+                      container.appendChild(img);
+                      document.body.appendChild(container);
+
+                      // Stay visible at 120% for 1 second, then shrink and fade border/shadow
+                      setTimeout(() => {
+                        container.style.transform = 'scale(1)';
+                        container.style.boxShadow = '0 0 0px rgba(0,0,0,0)';
+                        img.style.borderColor = 'transparent';
+                      }, 1000);
+
+                      // Remove after animation completes (1s wait + 0.3s animation + 0.5s final display)
+                      setTimeout(() => {
+                        container.remove();
+                      }, 1800);
+
+                      return container.id;
+                    })()
+                  `,
+                  returnByValue: true
+                }
+              );
+            } catch (err) {
+              console.error('Failed to show screenshot preview:', err);
+            }
+          }, 500);
+        }
+
+        return { data: result.data };
       } catch (error) {
         throw new Error(`Screenshot failed: ${error.message}`);
       }
@@ -717,6 +1212,37 @@ async function handleMouseEvent(params) {
   const { type, x, y, button = 'left' } = params;
   // clickCount parameter not currently used
 
+  // Only detect side effects on mouseReleased (final action of a click)
+  const shouldDetectSideEffects = (type === 'mouseReleased');
+
+  // Step 1: Capture initial state before click
+  let initialState = null;
+  let initialDialogCount = 0;
+  if (shouldDetectSideEffects) {
+    const initialTab = await chrome.tabs.get(attachedTabId);
+    const dialogEvents = await dialogHandler.getDialogEvents(attachedTabId);
+    initialState = {
+      url: initialTab.url,
+      title: initialTab.title,
+      status: initialTab.status
+    };
+    initialDialogCount = dialogEvents.length;
+  }
+
+  // Step 2: Set up listeners for new tabs/windows
+  let newTabsCreated = [];
+  let tabCreatedListener = null;
+  if (shouldDetectSideEffects) {
+    tabCreatedListener = (tab) => {
+      newTabsCreated.push({
+        id: tab.id,
+        url: tab.url || tab.pendingUrl,
+        openerTabId: tab.openerTabId
+      });
+    };
+    chrome.tabs.onCreated.addListener(tabCreatedListener);
+  }
+
   // Convert CDP event types to DOM event types
   const eventTypeMap = {
     'mousePressed': 'mousedown',
@@ -730,6 +1256,7 @@ async function handleMouseEvent(params) {
     lastMouseDown = { x, y, button, timestamp: Date.now() };
   }
 
+  // Step 3: Perform the click
   const results = await browserAdapter.executeScript(attachedTabId, {
     world: 'MAIN',  // Must use MAIN world for events to trigger handlers properly
     func: (eventType, x, y, buttonIndex, buttons, shouldSynthesizeClick) => {
@@ -786,7 +1313,95 @@ async function handleMouseEvent(params) {
     lastMouseDown = null;
   }
 
-  return results[0] || { success: false };
+  const clickResult = results[0] || { success: false };
+
+  // Step 4: Detect side effects (only for mouseReleased)
+  if (shouldDetectSideEffects && clickResult.success) {
+    // Wait a bit to see if navigation or other side effects start
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Check if navigation started
+    let currentTab = await chrome.tabs.get(attachedTabId);
+    const navigationStarted = currentTab.url !== initialState.url ||
+                              currentTab.status === 'loading';
+
+    // If navigation started, wait for it to complete (like Page.navigate does)
+    if (navigationStarted && currentTab.status === 'loading') {
+      await new Promise((resolve) => {
+        const listener = (tabId, changeInfo) => {
+          if (tabId === attachedTabId && changeInfo.status === 'complete') {
+            chrome.tabs.onUpdated.removeListener(listener);
+            resolve();
+          }
+        };
+        chrome.tabs.onUpdated.addListener(listener);
+        setTimeout(resolve, 5000); // Timeout after 5 seconds
+      });
+
+      // Get final tab state after navigation completes
+      currentTab = await chrome.tabs.get(attachedTabId);
+    }
+
+    // Remove tab creation listener
+    if (tabCreatedListener) {
+      chrome.tabs.onCreated.removeListener(tabCreatedListener);
+    }
+
+    // Detect all side effects
+    const sideEffects = {};
+
+    // Side effect 1: Navigation (URL/title changed)
+    if (currentTab.url !== initialState.url) {
+      sideEffects.navigation = {
+        from: initialState.url,
+        to: currentTab.url,
+        title: currentTab.title,
+        techStack: techStackInfo[attachedTabId] || null
+      };
+    }
+
+    // Side effect 2: New tabs/windows spawned
+    if (newTabsCreated.length > 0) {
+      // Check which tabs actually loaded vs were blocked
+      const tabPromises = newTabsCreated.map(async (tabInfo) => {
+        try {
+          const tab = await chrome.tabs.get(tabInfo.id);
+          return {
+            id: tab.id,
+            url: tab.url,
+            title: tab.title,
+            status: 'opened'
+          };
+        } catch {
+          // Tab was closed/blocked - likely popup blocker
+          return {
+            ...tabInfo,
+            status: 'blocked'
+          };
+        }
+      });
+
+      const newTabs = await Promise.all(tabPromises);
+      sideEffects.newTabs = newTabs;
+    }
+
+    // Side effect 3: Dialogs (alerts/confirms/prompts) shown
+    const dialogEvents = await dialogHandler.getDialogEvents(attachedTabId);
+    if (dialogEvents.length > initialDialogCount) {
+      sideEffects.dialogs = dialogEvents.slice(initialDialogCount);
+    }
+
+    // Return enhanced response with side effects (matching Page.navigate pattern)
+    return {
+      ...clickResult,
+      sideEffects: Object.keys(sideEffects).length > 0 ? sideEffects : null,
+      url: currentTab.url,
+      title: currentTab.title,
+      techStack: sideEffects.navigation?.techStack || techStackInfo[attachedTabId] || null
+    };
+  }
+
+  return clickResult;
 }
 
 // Key event handler
@@ -847,6 +1462,22 @@ wsConnection.registerCommandHandler('getTabs', async () => {
   return await tabHandlers.getTabs();
 });
 
+wsConnection.registerCommandHandler('get_build_info', async () => {
+  return { buildTimestamp };
+});
+
+wsConnection.registerCommandHandler('get_debug_storage', async () => {
+  // Read all debug storage values from extension background context
+  const storage = await chrome.storage.local.get([
+    'backgroundScriptLoaded',
+    'listenerRegistered',
+    'lastOnUpdatedEvent',
+    'lastNavigation',
+    'lastNotification'
+  ]);
+  return storage;
+});
+
 wsConnection.registerCommandHandler('selectTab', async (params) => {
   return await tabHandlers.selectTab(params);
 });
@@ -855,8 +1486,8 @@ wsConnection.registerCommandHandler('createTab', async (params) => {
   return await tabHandlers.createTab(params);
 });
 
-wsConnection.registerCommandHandler('closeTab', async () => {
-  return await tabHandlers.closeTab();
+wsConnection.registerCommandHandler('closeTab', async (params) => {
+  return await tabHandlers.closeTab(params?.index);
 });
 
 wsConnection.registerCommandHandler('openTestPage', async () => {
@@ -923,12 +1554,59 @@ wsConnection.registerCommandHandler('reloadExtensions', async (params) => {
 });
 
 wsConnection.registerCommandHandler('getNetworkRequests', async () => {
-  return { requests: networkTracker.getRequests() };
+  // Try CDP-tracked requests first (with proper requestIds for getResponseBody)
+  const cdpRequests = Array.from(cdpNetworkRequests.values());
+
+  // Fallback to webRequest tracker if no CDP requests
+  if (cdpRequests.length === 0) {
+    logger.log('[Background] No CDP requests, falling back to webRequest tracker');
+    return { requests: networkTracker.getRequests() };
+  }
+
+  return { requests: cdpRequests };
 });
 
 wsConnection.registerCommandHandler('clearTracking', async () => {
+  // Clear both CDP and webRequest trackers
+  cdpNetworkRequests.clear();
   networkTracker.clearRequests();
   return { success: true };
+});
+
+wsConnection.registerCommandHandler('getResponseBody', async ({ requestId }) => {
+  const attachedTabId = tabHandlers.getAttachedTabId();
+  if (!attachedTabId) {
+    return { error: 'No tab attached' };
+  }
+
+  try {
+    // Ensure Network domain is enabled
+    await handleCDPCommand('Network.enable', {});
+
+    // Get response body via CDP
+    const result = await handleCDPCommand('Network.getResponseBody', { requestId });
+    return result;
+  } catch (error) {
+    return { error: error.message };
+  }
+});
+
+wsConnection.registerCommandHandler('getRequestPostData', async ({ requestId }) => {
+  const attachedTabId = tabHandlers.getAttachedTabId();
+  if (!attachedTabId) {
+    return { error: 'No tab attached' };
+  }
+
+  try {
+    // Ensure Network domain is enabled
+    await handleCDPCommand('Network.enable', {});
+
+    // Get POST data via CDP
+    const result = await handleCDPCommand('Network.getRequestPostData', { requestId });
+    return result;
+  } catch (error) {
+    return { error: error.message };
+  }
 });
 
 wsConnection.registerCommandHandler('getConsoleMessages', async () => {

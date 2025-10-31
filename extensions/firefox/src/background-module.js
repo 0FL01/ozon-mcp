@@ -348,7 +348,17 @@ async function handleCDPCommand(params) {
 
     case 'Page.captureScreenshot': {
       try {
-        const dataUrl = await browser.tabs.captureVisibleTab(null, {
+        // Get the attached tab info
+        const tab = await browser.tabs.get(attachedTabId);
+        const windowId = tab.windowId;
+
+        // Check if attached tab is currently active in its window
+        if (!tab.active) {
+          throw new Error(`Cannot screenshot: attached tab (index ${tab.index}) is not active in its window. Please ensure the tab you want to screenshot is visible, or use browser_tabs with activate=true when attaching.`);
+        }
+
+        // Capture the visible tab in that window (which should be the attached tab)
+        const dataUrl = await browser.tabs.captureVisibleTab(windowId, {
           format: cdpParams.format || 'png',
           quality: cdpParams.quality
         });

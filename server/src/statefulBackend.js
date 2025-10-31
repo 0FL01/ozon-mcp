@@ -94,19 +94,42 @@ class StatefulBackend {
   _getStatusHeader() {
     const parts = [];
 
-    // State
+    // Mode and version (always shown, even when passive)
+    const mode = this._isAuthenticated ? 'PRO' : 'FREE';
+    const version = require('../package.json').version;
+
+    // State - return early for passive/waiting states with mode and version
     if (this._state === 'passive') {
-      return '🔴 Disabled\n---\n\n';
+      return `🔴 ${mode} v${version} | Disabled\n---\n\n`;
     }
 
     if (this._state === 'authenticated_waiting') {
-      return '⏳ Waiting for browser selection\n---\n\n';
+      return `⏳ ${mode} v${version} | Waiting for browser selection\n---\n\n`;
     }
 
-    // Mode
-    const mode = this._isAuthenticated ? 'PRO' : 'Free';
-    const version = require('../package.json').version;
-    parts.push(`✅ ${mode} v${version}`);
+    // Get build timestamp from connected extension (not from disk)
+    let buildTime = null;
+    if (this._activeBackend) {
+      if (this._extensionServer) {
+        buildTime = this._extensionServer.getBuildTimestamp();
+      } else if (this._proxyConnection) {
+        buildTime = this._proxyConnection._extensionBuildTimestamp;
+      }
+
+      // Format timestamp to HH:MM:SS if it's ISO format
+      if (buildTime) {
+        try {
+          const date = new Date(buildTime);
+          buildTime = date.toLocaleTimeString('en-US', { hour12: false });
+        } catch (e) {
+          // Keep original format if parsing fails
+        }
+      }
+    }
+
+    // Only show timestamp in debug mode
+    const versionStr = (buildTime && this._debugMode) ? `v${version} [${buildTime}]` : `v${version}`;
+    parts.push(`✅ ${mode} ${versionStr}`);
 
     // Browser - show disconnected status if browser disconnected
     if (this._browserDisconnected) {
@@ -348,7 +371,8 @@ class StatefulBackend {
       return {
         content: [{
           type: 'text',
-          text: `### ✅ Already Enabled\n\n**Current State:** ${this._state}\n**Client ID:** ${this._clientId || 'unknown'}\n\n**Browser automation is already active!**\n\nYou can now use browser tools:\n- \`browser_tabs\` - List, select, or create tabs\n- \`browser_navigate\` - Navigate to URLs\n- \`browser_interact\` - Click, type, etc.\n- And more...\n\nTo restart, call \`disable\` first.`
+          text: this._getStatusHeader() +
+                `### ✅ Already Enabled\n\n**Current State:** ${this._state}\n**Client ID:** ${this._clientId || 'unknown'}\n\n**Browser automation is already active!**\n\nYou can now use browser tools:\n- \`browser_tabs\` - List, select, or create tabs\n- \`browser_navigate\` - Navigate to URLs\n- \`browser_interact\` - Click, type, etc.\n- And more...\n\nTo restart, call \`disable\` first.`
         }]
       };
     }
@@ -504,7 +528,7 @@ class StatefulBackend {
       );
 
       const errorMsg = isPortError
-        ? `### Connection Failed\n\nPort ${port} is already in use.\n\n**Possible causes:**\n- Another MCP server is already running\n- Another application is using port ${port}\n\n**Solution:** Kill the process using port ${port}:\n\`\`\`\nlsof -ti:${port} | xargs kill -9\n\`\`\`\n\nThen try connecting again.`
+        ? `Port ${port} already in use. Disable MCP in other project or switch to PRO mode: https://blueprint-mcp.railsblueprint.com/pro`
         : `### Connection Failed\n\nFailed to start server:\n${error.message}`;
 
       return {
@@ -641,6 +665,17 @@ class StatefulBackend {
         this._connectedBrowserName = browsers[0].name || 'Chrome';  // Store browser name
 
         debugLog('[StatefulBackend] Successfully auto-connected to single browser');
+
+        // Get build timestamp from extension
+        try {
+          const buildInfo = await mcpConnection.sendRequest('get_build_info', {}, 5000);
+          if (buildInfo && buildInfo.buildTimestamp) {
+            mcpConnection._extensionBuildTimestamp = buildInfo.buildTimestamp;
+            debugLog('[StatefulBackend] Extension build timestamp:', buildInfo.buildTimestamp);
+          }
+        } catch (e) {
+          debugLog('[StatefulBackend] Failed to get build info:', e.message);
+        }
 
         return {
           content: [{
@@ -1009,6 +1044,42 @@ class StatefulBackend {
         this._attachedTab = null;
       };
 
+      // Handle browser reconnection
+      mcpConnection.onBrowserReconnected = async (params) => {
+        debugLog('[StatefulBackend] Browser reconnected:', params);
+        console.error(`[StatefulBackend] ✅ Browser extension "${params.name || this._connectedBrowserName}" reconnected`);
+
+        // Re-establish connection to the extension (get new connection_id)
+        try {
+          debugLog('[StatefulBackend] Re-connecting to extension:', params.id);
+          const connectResult = await mcpConnection.sendRequest('connect', { extension_id: params.id });
+          mcpConnection._connectionId = connectResult.connection_id;
+          debugLog('[StatefulBackend] Re-connected with new connection_id:', connectResult.connection_id);
+
+          // Clear the disconnected flag - browser is back online and connected
+          this._browserDisconnected = false;
+
+          console.error(`[StatefulBackend] ✅ Connection re-established to "${params.name}"`);
+
+          // Fetch build timestamp from extension (may have been updated on reload)
+          try {
+            const buildInfo = await mcpConnection.sendRequest('get_build_info', {}, 5000);
+            if (buildInfo && buildInfo.buildTimestamp) {
+              mcpConnection._extensionBuildTimestamp = buildInfo.buildTimestamp;
+              debugLog('[StatefulBackend] Extension build timestamp updated:', buildInfo.buildTimestamp);
+            }
+          } catch (e) {
+            debugLog('[StatefulBackend] Failed to get build info on reconnect:', e.message);
+          }
+        } catch (error) {
+          console.error(`[StatefulBackend] ⚠️  Failed to re-connect to extension:`, error.message);
+          // Keep disconnected flag set if reconnection failed
+        }
+
+        // Note: We don't automatically restore _attachedTab here because the tab may have been closed
+        // during the disconnection. The user can re-attach to a tab manually if needed.
+      };
+
       // Monitor tab info updates (keep _attachedTab in sync with actual browser state)
       mcpConnection.onTabInfoUpdate = (tabInfo) => {
         debugLog('[StatefulBackend] Tab info update:', tabInfo);
@@ -1064,6 +1135,17 @@ class StatefulBackend {
       this._availableBrowsers = null; // Clear the cache
 
       debugLog('[StatefulBackend] Successfully connected to selected browser');
+
+      // Get build timestamp from extension
+      try {
+        const buildInfo = await mcpConnection.sendRequest('get_build_info', {}, 5000);
+        if (buildInfo && buildInfo.buildTimestamp) {
+          mcpConnection._extensionBuildTimestamp = buildInfo.buildTimestamp;
+          debugLog('[StatefulBackend] Extension build timestamp:', buildInfo.buildTimestamp);
+        }
+      } catch (e) {
+        debugLog('[StatefulBackend] Failed to get build info:', e.message);
+      }
 
       return {
         content: [{

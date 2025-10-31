@@ -39,6 +39,7 @@ class MCPConnection {
     this._pendingRequests = new Map(); // requestId -> { resolve, reject, timeoutId }
     this.onClose = null; // Callback when connection closes
     this.onBrowserDisconnected = null; // Callback when browser extension disconnects (proxy stays connected)
+    this.onBrowserReconnected = null; // Callback when browser extension reconnects (after being disconnected)
   }
 
   /**
@@ -177,11 +178,24 @@ class MCPConnection {
       if (message.method && message.id === undefined) {
         debugLog('Received notification:', message.method, message.params);
 
+        // Handle build_info notification from extension (via proxy)
+        if (message.method === 'build_info' && message.params?.buildTimestamp) {
+          debugLog('Build info notification received:', message.params.buildTimestamp);
+          this._extensionBuildTimestamp = message.params.buildTimestamp;
+        }
+
         // Handle disconnection notification from proxy
         if (message.method === 'disconnected' && this.onBrowserDisconnected) {
           debugLog('Extension disconnected notification received');
           // Notify the StatefulBackend without closing the proxy connection
           this.onBrowserDisconnected(message.params);
+        }
+
+        // Handle reconnection notification from proxy
+        if (message.method === 'connected' && this.onBrowserReconnected) {
+          debugLog('Extension reconnected notification received:', message.params);
+          // Notify the StatefulBackend that browser is back online
+          this.onBrowserReconnected(message.params);
         }
 
         // Handle tab_info_update notification from extension (via proxy)

@@ -140,6 +140,12 @@ export class TabHandlers {
     const allTabs = await this.browser.tabs.query({});
     const tabIndex = allTabs.findIndex(t => t.id === tab.id);
 
+    // Clear badge from old tab if there was one
+    const oldTabId = this.attachedTabId;
+    if (oldTabId && oldTabId !== tab.id && this.iconManager) {
+      await this.iconManager.clearBadge(oldTabId);
+    }
+
     // Auto-attach to the new tab
     this.attachedTabId = tab.id;
     this.attachedTabInfo = {
@@ -150,11 +156,29 @@ export class TabHandlers {
       techStack: this.techStackInfo[tab.id] || null
     };
 
+    // Focus the window if activating the tab (may help badge appear immediately)
+    if (activate && tab.windowId) {
+      await this.browser.windows.update(tab.windowId, { focused: true });
+    }
+
     // Update icon manager
     if (this.iconManager) {
       this.iconManager.setAttachedTab(tab.id);
       this.iconManager.setStealthMode(stealth);
       await this.iconManager.updateBadgeForTab();
+
+      // Force badge UI refresh with retries
+      // Chrome doesn't fire onActivated for newly created tabs,
+      // so badge may not appear until UI processes the update.
+      // Try multiple times with increasing delays to ensure it appears.
+      if (activate) {
+        setTimeout(async () => {
+          await this.iconManager.updateBadgeForTab();
+        }, 50);
+        setTimeout(async () => {
+          await this.iconManager.updateBadgeForTab();
+        }, 150);
+      }
     }
 
     // Inject console capture and dialog overrides
@@ -265,33 +289,65 @@ export class TabHandlers {
 
   /**
    * Handle closeTab command
-   * Closes the currently attached tab
+   * Can close by index or close the currently attached tab
+   * @param {number} [index] - Optional tab index to close. If not provided, closes attached tab.
+   * @returns {Object} - {success: true, closedAttachedTab: boolean}
    */
-  async closeTab() {
-    if (!this.attachedTabId) {
-      throw new Error('No tab attached');
+  async closeTab(index) {
+    let tabIdToClose;
+    let wasAttached = false;
+
+    if (index !== undefined) {
+      // Close tab by index - use same method as getTabs() to ensure consistent ordering
+      const windows = await this.browser.windows.getAll({ populate: true });
+      const allTabs = [];
+      windows.forEach(window => {
+        window.tabs.forEach(tab => {
+          allTabs.push(tab);
+        });
+      });
+
+      if (index < 0 || index >= allTabs.length) {
+        throw new Error(`Tab index ${index} out of range (0-${allTabs.length - 1})`);
+      }
+
+      const tabToClose = allTabs[index];
+      tabIdToClose = tabToClose.id;
+
+      // Check if we're closing the attached tab
+      wasAttached = (tabIdToClose === this.attachedTabId);
+    } else {
+      // Close currently attached tab
+      if (!this.attachedTabId) {
+        throw new Error('No tab attached');
+      }
+      tabIdToClose = this.attachedTabId;
+      wasAttached = true;
     }
 
-    const closingTabId = this.attachedTabId;
+    // Close the tab
+    await this.browser.tabs.remove(tabIdToClose);
 
-    await this.browser.tabs.remove(this.attachedTabId);
-    this.attachedTabId = null;
-    this.attachedTabInfo = null;
+    // If we closed the attached tab, clear attachment
+    if (wasAttached) {
+      this.attachedTabId = null;
+      this.attachedTabInfo = null;
+
+      // Update icon manager
+      if (this.iconManager) {
+        this.iconManager.setAttachedTab(null);
+      }
+    }
 
     // Clean up per-tab stealth mode
-    delete this.tabStealthModes[closingTabId];
+    delete this.tabStealthModes[tabIdToClose];
 
     // Clean up storage
     if (this.browser.storage && this.browser.storage.session) {
-      await this.browser.storage.session.remove(`stealth_${closingTabId}`);
+      await this.browser.storage.session.remove(`stealth_${tabIdToClose}`);
     }
 
-    // Update icon manager
-    if (this.iconManager) {
-      this.iconManager.setAttachedTab(null);
-    }
-
-    return { success: true };
+    return { success: true, closedAttachedTab: wasAttached };
   }
 
   /**

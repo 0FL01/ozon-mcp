@@ -112,7 +112,7 @@ export class IconManager {
    * Clear badge for a specific tab
    */
   async clearBadge(tabId) {
-    await this.updateBadge(tabId, { text: '' });
+    await this.updateBadge(tabId, { text: '', color: '#00000000' }); // Transparent color
   }
 
   /**

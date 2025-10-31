@@ -70,9 +70,18 @@ const sharedDest = path.join(distDir, 'shared');
 copyDirectory(sharedSrc, sharedDest);
 console.log('✓ Shared modules copied\n');
 
+// Write build timestamp
+const buildTimestamp = new Date().toISOString();
+const buildInfoPath = path.join(distDir, 'build-info.json');
+fs.writeFileSync(buildInfoPath, JSON.stringify({
+  timestamp: buildTimestamp,
+  timestampUnix: Date.now()
+}, null, 2));
+
 // Done!
 console.log('✅ Build complete!\n');
 console.log(`📍 Extension ready at: ${distDir}`);
+console.log(`🕐 Build timestamp: ${buildTimestamp}`);
 console.log('📝 Load in Chrome: chrome://extensions/ → Load unpacked → Select dist/chrome');
 
 /**
