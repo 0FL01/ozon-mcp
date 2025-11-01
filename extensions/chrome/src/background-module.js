@@ -1519,9 +1519,11 @@ wsConnection.registerCommandHandler('reloadExtensions', async (params) => {
   // Get all extensions
   const extensions = await chrome.management.getAll();
   const reloadedNames = [];
+  const skippedPacked = [];
 
   for (const ext of extensions) {
-    if (ext.type === 'extension' && ext.enabled) {
+    // Only reload unpacked/development extensions
+    if (ext.type === 'extension' && ext.enabled && ext.installType === 'development') {
       // If specific extension requested, only reload that one
       if (extensionName && ext.name !== extensionName) {
         continue;
@@ -1536,19 +1538,24 @@ wsConnection.registerCommandHandler('reloadExtensions', async (params) => {
           chrome.runtime.reload();
           reloadedNames.push(ext.name);
         } else {
-          // For other extensions, use management API
+          // For other extensions, use management API (like Extensions Reloader)
           await chrome.management.setEnabled(ext.id, false);
           await chrome.management.setEnabled(ext.id, true);
           reloadedNames.push(ext.name);
+          logger.log(`${ext.name} reloaded`);
         }
       } catch (e) {
         logger.log(`Could not reload ${ext.name}:`, e.message);
       }
+    } else if (ext.type === 'extension' && ext.enabled && extensionName && ext.name === extensionName) {
+      // User requested a specific packed extension - track it
+      skippedPacked.push(ext.name);
     }
   }
 
   return {
     reloaded: reloadedNames,
+    skippedPacked: skippedPacked,
     extensions: extensions.filter(e => e.type === 'extension').map(e => e.name)
   };
 });

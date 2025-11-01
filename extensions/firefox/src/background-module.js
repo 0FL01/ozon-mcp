@@ -572,40 +572,53 @@ async function handleListExtensions() {
 
 /**
  * Handle reloadExtensions command
+ * Only reloads unpacked/development extensions (like Extensions Reloader)
  */
 async function handleReloadExtensions(params) {
-  const extensionIds = params.extensionIds || [];
+  const extensionName = params?.extensionName;
+  const currentExtensionId = browser.runtime.id;
 
-  // If no specific extensions requested, reload all (except this one)
-  let targetIds = extensionIds;
-  if (targetIds.length === 0) {
-    const allExtensions = await browser.management.getAll();
-    targetIds = allExtensions
-      .filter(ext => ext.type === 'extension' && ext.id !== browser.runtime.id)
-      .map(ext => ext.id);
-  }
+  // Get all extensions
+  const extensions = await browser.management.getAll();
+  const reloadedNames = [];
+  const skippedPacked = [];
 
-  const results = [];
+  for (const ext of extensions) {
+    // Only reload unpacked/development extensions
+    if (ext.type === 'extension' && ext.enabled && ext.installType === 'development') {
+      // If specific extension requested, only reload that one
+      if (extensionName && ext.name !== extensionName) {
+        continue;
+      }
 
-  for (const extId of targetIds) {
-    try {
-      // Disable and re-enable to reload
-      await browser.management.setEnabled(extId, false);
-      await browser.management.setEnabled(extId, true);
-      results.push({ id: extId, success: true });
-    } catch (error) {
-      results.push({ id: extId, success: false, error: error.message });
+      try {
+        // Special handling for reloading ourselves
+        if (ext.id === currentExtensionId) {
+          logger.log(`Reloading self using runtime.reload()...`);
+          // Use runtime.reload() for self-reload
+          browser.runtime.reload();
+          reloadedNames.push(ext.name);
+        } else {
+          // For other extensions, use management API (like Extensions Reloader)
+          await browser.management.setEnabled(ext.id, false);
+          await browser.management.setEnabled(ext.id, true);
+          reloadedNames.push(ext.name);
+          logger.log(`${ext.name} reloaded`);
+        }
+      } catch (e) {
+        logger.log(`Could not reload ${ext.name}:`, e.message);
+      }
+    } else if (ext.type === 'extension' && ext.enabled && extensionName && ext.name === extensionName) {
+      // User requested a specific packed extension - track it
+      skippedPacked.push(ext.name);
     }
   }
 
-  // Send response before reloading ourselves
-  if (extensionIds.includes(browser.runtime.id)) {
-    setTimeout(() => {
-      browser.runtime.reload();
-    }, 100);
-  }
-
-  return { results };
+  return {
+    reloaded: reloadedNames,
+    skippedPacked: skippedPacked,
+    extensions: extensions.filter(e => e.type === 'extension').map(e => e.name)
+  };
 }
 
 /**

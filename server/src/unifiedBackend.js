@@ -458,11 +458,11 @@ class UnifiedBackend {
       },
       {
         name: 'browser_reload_extensions',
-        description: 'Reload Chrome extensions',
+        description: 'Reload unpacked/development Chrome extensions. Only works for extensions loaded from a folder (chrome://extensions -> "Load unpacked"). Does not work for packed extensions from Chrome Web Store.',
         inputSchema: {
           type: 'object',
           properties: {
-            extensionName: { type: 'string', description: 'Specific extension to reload' }
+            extensionName: { type: 'string', description: 'Specific extension to reload (must be unpacked/development)' }
           }
         }
       },
@@ -4371,13 +4371,22 @@ This request was captured by the browser extension's background tracker (webRequ
     });
 
     const reloadedList = result.reloaded || [];
+    const skippedPacked = result.skippedPacked || [];
     const count = reloadedList.length;
     const names = reloadedList.join(', ') || 'None';
+
+    let text = `### Extensions Reloaded\n\n**Count:** ${count}\n**Extensions:** ${names}`;
+
+    // If user tried to reload a packed extension, explain why it didn't work
+    if (skippedPacked.length > 0) {
+      text += `\n\n⚠️ **Skipped (packed extensions):** ${skippedPacked.join(', ')}`;
+      text += `\n\n**Note:** Only unpacked/development extensions can be reloaded. Packed extensions (from Chrome Web Store or .crx files) must be manually updated.`;
+    }
 
     return {
       content: [{
         type: 'text',
-        text: `### Extensions Reloaded\n\n**Count:** ${count}\n**Extensions:** ${names}`
+        text: text
       }],
       isError: false
     };
