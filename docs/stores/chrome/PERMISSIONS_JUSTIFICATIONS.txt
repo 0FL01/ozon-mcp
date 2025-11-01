@@ -1,0 +1,64 @@
+===============================================================================
+CHROME WEB STORE PRIVACY PRACTICES - PERMISSIONS JUSTIFICATIONS
+Blueprint MCP for Chrome Extension
+===============================================================================
+
+Each justification is under 1,000 characters as required by Chrome Web Store.
+
+-------------------------------------------------------------------------------
+SINGLE PURPOSE DESCRIPTION (up to 1,000 characters)
+-------------------------------------------------------------------------------
+
+Blueprint MCP for Chrome enables AI assistants (Claude Code, Claude Desktop, Cursor, and other MCP-compatible clients) to automate the user's real Chrome browser through the Model Context Protocol. The extension bridges AI assistants and Chrome, translating natural language instructions into precise browser actions - clicking, typing, navigating, taking screenshots, extracting content, and more. This eliminates headless browser tools (Playwright/Puppeteer/Selenium) that lose logged-in sessions and face bot detection. The extension preserves the user's real browser profile, keeping them logged into all sites with their authentic browser fingerprint. Designed for developers who want AI assistants to automate web tasks using existing browser sessions, enabling workflows like authenticated web scraping, form automation, testing logged-in features, and API debugging.
+
+-------------------------------------------------------------------------------
+PERMISSION: activeTab
+-------------------------------------------------------------------------------
+
+The activeTab permission is required to read the current tab's content when the user's AI assistant requests page information. This enables tools like browser_snapshot (getting accessible DOM structure), browser_extract_content (converting page to markdown), and browser_verify_text_visible (confirming expected content). Without activeTab, the extension cannot access the current page to provide the AI assistant with the context it needs to automate browser tasks. This permission is only used when explicitly requested by the user through their AI assistant - the extension never reads tab content in the background or without user intent.
+
+-------------------------------------------------------------------------------
+PERMISSION: alarms
+-------------------------------------------------------------------------------
+
+The alarms permission is required for two critical reliability features: (1) Auto-reconnection - If the WebSocket connection to the MCP server drops (due to network issues, server restart, or browser suspension), the extension uses alarms to automatically retry connection every 5 seconds until successful. This ensures the automation workflow can resume without manual intervention. (2) Service worker keepalive - Chrome's Manifest V3 suspends service workers after 30 seconds of inactivity. The extension uses alarms to keep the service worker alive during active automation sessions, preventing mid-task disconnections that would break multi-step workflows.
+
+-------------------------------------------------------------------------------
+PERMISSION: debugger
+-------------------------------------------------------------------------------
+
+The debugger permission (Chrome DevTools Protocol access) is required for advanced browser automation features that cannot be achieved through standard Chrome APIs: (1) Taking screenshots of full pages or specific elements (browser_take_screenshot tool), (2) Getting accessible DOM snapshots without executing JavaScript (browser_snapshot tool), (3) Monitoring network requests with full headers and bodies for debugging (browser_network_requests tool), (4) Measuring page performance metrics like Web Vitals (browser_performance_metrics tool). The debugger is only attached to tabs when the user's AI assistant actively requests these features. It is never used for tracking, monitoring, or data collection.
+
+-------------------------------------------------------------------------------
+PERMISSION: host permission use (<all_urls>)
+-------------------------------------------------------------------------------
+
+The <all_urls> host permission is required because the extension must automate any website the user visits - it cannot predict which sites users will want to automate. This permission enables: (1) Clicking elements, typing text, and interacting with forms on any site (browser_interact, browser_fill_form tools), (2) Injecting content scripts to detect tech stacks (identifying React, Vue, Next.js, etc.), (3) Navigating to user-specified URLs (browser_navigate tool), (4) Taking screenshots of any page (browser_take_screenshot tool). The extension only acts when explicitly commanded by the user's AI assistant - it does not monitor, track, or collect data from websites. In Free tier mode, all data stays on the user's local machine via localhost WebSocket.
+
+-------------------------------------------------------------------------------
+PERMISSION: management
+-------------------------------------------------------------------------------
+
+The management permission is required for two developer-focused features: (1) Listing installed Chrome extensions (browser_list_extensions tool) - useful when debugging or documenting a user's browser setup, (2) Reloading Chrome extensions programmatically (browser_reload_extensions tool) - useful when developing or testing extensions without manual reloading. These features are explicitly requested by the user through their AI assistant and are particularly valuable for developers who use the extension to automate browser-based development workflows. The permission is not used for tracking, monitoring, or modifying other extensions without user intent.
+
+-------------------------------------------------------------------------------
+PERMISSION: remote code use
+-------------------------------------------------------------------------------
+
+The extension does NOT execute remote code. All extension code is packaged in the extension bundle and reviewed by Chrome Web Store. However, the extension exposes a browser_evaluate tool that allows the user's AI assistant to execute JavaScript in the page context. This is analogous to opening DevTools and typing in the Console - it executes code in the website's context, not the extension's context. This feature is essential for automation tasks like extracting data from JavaScript-heavy sites, triggering events, or inspecting variables. The code is always user-initiated through their AI assistant and executes with the same permissions as the website itself (not the extension's elevated permissions).
+
+-------------------------------------------------------------------------------
+PERMISSION: storage
+-------------------------------------------------------------------------------
+
+The storage permission is required to save user preferences and authentication state: (1) Connection mode preference (Free or PRO tier), (2) OAuth2 access/refresh tokens for PRO tier users (encrypted by Chrome's built-in storage encryption), (3) Last connected browser and tab for auto-reconnection after browser restart, (4) Client ID for identifying the connection to the MCP server. All data stored is configuration and authentication data only - the extension never stores browsing history, page content, form inputs, or personal information. In Free tier mode, only minimal configuration is stored (no authentication tokens needed).
+
+-------------------------------------------------------------------------------
+PERMISSION: tabs
+-------------------------------------------------------------------------------
+
+The tabs permission is required for comprehensive tab management features: (1) Listing all open tabs (browser_tabs tool with action='list') so the AI assistant knows what's available, (2) Creating new tabs programmatically (browser_tabs with action='new') for multi-tab workflows, (3) Switching between tabs (browser_tabs with action='attach') to automate tasks across multiple tabs, (4) Closing tabs (browser_tabs with action='close') to clean up after automation, (5) Detecting navigation events to clear stale page state. These features are core to browser automation and are only used when explicitly requested by the user's AI assistant.
+
+===============================================================================
+END OF PERMISSIONS JUSTIFICATIONS
+===============================================================================
