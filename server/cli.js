@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Copyright (c) 2024 Rails Blueprint
+ * Copyright (c) 2025 Rails Blueprint
  * Originally inspired by Microsoft's Playwright MCP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");

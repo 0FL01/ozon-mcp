@@ -1,8 +1,8 @@
 # Blueprint MCP for Chrome - Complete Feature List
 
-**Current Version:** 1.5.5
-**Total Commits:** 599
-**Development Period:** Oct 2024 - Present
+**Current Version:** 1.8.1
+**Total Commits:** 600+
+**Development Period:** Oct 2024 - Jan 2025
 
 This document catalogs all features based on git history, code analysis, and documentation.
 
@@ -62,7 +62,7 @@ This document catalogs all features based on git history, code analysis, and doc
 - ✅ `auth action='logout'` - Clear tokens
 - ✅ `auth action='status'` - Check authentication state
 - ✅ JWT token storage - Local encrypted storage
-- ✅ Automatic token refresh - 5 minutes before expiry
+- ✅ Proactive token refresh - Automatic refresh 5 minutes before expiry
 - ✅ Invalid token detection - Clear and re-prompt
 - ✅ Cloud relay connection - WebSocket to remote server
 - ✅ Multi-client support - Share browser across AI clients
@@ -404,7 +404,12 @@ This document catalogs all features based on git history, code analysis, and doc
   - Update extension/package.json
   - Git tag
   - Build extension
-- ✅ Chrome Web Store - Ready for submission
+- ✅ Chrome Web Store - Promotional materials complete
+  - Description (9,147 chars)
+  - Permissions justifications (9 sections)
+  - Promo tiles (440x280 and 1400x560)
+  - Screenshots (free and PRO tiers)
+  - Logo assets
 - ✅ Extension manifest - v3 format
 
 ### Configuration
@@ -415,11 +420,16 @@ This document catalogs all features based on git history, code analysis, and doc
 - ✅ No dotenv in production - Clean protocol output
 
 ### Testing
-- ✅ Test suite - Playwright-based
+- ✅ Comprehensive test suite - Playwright-based
+- ✅ Unit tests - State transitions, parameter validation
+- ✅ Integration tests - Side effects testing
 - ✅ Test fixtures - Shared client/server setup
-- ✅ Test page - Interaction testing
+- ✅ Test page - Interaction testing (test-side-effects.html)
 - ✅ 100% test pass rate - 17 tests (as of Oct 24)
 - ✅ Coverage tracking - SimpleCov equivalent
+- ✅ Manual test procedures - Comprehensive 10-part guide
+- ✅ Feature specification - Complete feature documentation
+- ✅ Test progress tracking - Real-time test status
 
 ---
 
@@ -428,9 +438,14 @@ This document catalogs all features based on git history, code analysis, and doc
 ### User Documentation
 - ✅ README.md - Comprehensive guide
 - ✅ CONTRIBUTING.md - Contribution guidelines
-- ✅ docs/testing/TESTING_GUIDE.md - Test procedures
+- ✅ docs/testing/MANUAL_TEST_PROCEDURES.md - Comprehensive 10-part manual test guide
+- ✅ docs/testing/FEATURE_SPEC.md - Complete feature specification
+- ✅ docs/testing/TEST_PROGRESS.md - Test coverage tracking
+- ✅ docs/testing/AUTO_TEST_STRATEGY.md - Automated testing strategy
+- ✅ docs/testing/SIDE_EFFECTS_TESTING.md - Side effects testing guide
 - ✅ docs/architecture/PROXY_PROTOCOL.md - Protocol spec
 - ✅ docs/KNOWN_ISSUES.md - Known limitations
+- ✅ docs/stores/chrome/ - Chrome Web Store submission materials
 - ✅ Inline tool descriptions - MCP annotations
 - ✅ Tool schemas - JSON Schema validation
 - ✅ Installation instructions - Multiple MCP clients
@@ -475,6 +490,7 @@ This document catalogs all features based on git history, code analysis, and doc
 - ✅ Stealth mode indicator - Visual badge
 - ✅ PRO upgrade section - Marketing CTA
 - ✅ OAuth login flow - Browser-based auth
+- ✅ Live token expiration display - Real-time countdown to token expiry
 - ✅ Connection limits - Usage tracking
 - ✅ Console access buttons - Quick links
 - ✅ Popup sync fixes - State consistency
@@ -604,11 +620,34 @@ This document catalogs all features based on git history, code analysis, and doc
 - `browser_lookup` tool
 - Element detection
 
-### v1.5.x - Firefox & Tech Stack (Current)
+### v1.5.x - Firefox & Tech Stack
 - Full Firefox extension
 - Tech stack detection
 - Tab close action
 - Compound selector fixes
+
+### v1.6.x - Monorepo & Vanilla JS
+- Monorepo structure
+- Complete Playwright removal
+- Chrome extension vanilla JS refactor
+- Firefox Manifest V3 refactor
+- Shared modules across extensions
+
+### v1.7.x - Testing & Reliability
+- Comprehensive testing suite
+- Unit tests for state transitions
+- Integration tests for side effects
+- Manual test procedures (10-part guide)
+- Feature specification documentation
+- Log directory creation fix
+- User data path improvements
+
+### v1.8.x - Token Management & Store Prep (Current)
+- Proactive token refresh (5 min before expiry)
+- Live token expiration display in popup
+- Chrome Web Store promotional materials
+- Store description and permissions justifications
+- Promo tiles and screenshots
 
 ---
 
@@ -657,6 +696,6 @@ This document catalogs all features based on git history, code analysis, and doc
 
 ---
 
-**Last Updated:** 2024-10-26
+**Last Updated:** 2025-01-11
 **Based on:** Git history (599 commits), code analysis, documentation
 **Compiled by:** Claude Code

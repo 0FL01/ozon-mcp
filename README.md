@@ -277,6 +277,11 @@ npm test
 npm run test:coverage
 ```
 
+**Documentation:**
+- [Manual Test Procedures](docs/testing/MANUAL_TEST_PROCEDURES.md) - Comprehensive manual testing guide
+- [Feature Specification](docs/testing/FEATURE_SPEC.md) - Complete feature documentation
+- [Test Progress](docs/testing/TEST_PROGRESS.md) - Current test coverage status
+
 ## Configuration
 
 The server works out-of-the-box with sensible defaults. For advanced configuration:
@@ -356,7 +361,7 @@ We're grateful to the Playwright team for pioneering browser automation via MCP.
 
 Apache License 2.0 - see [LICENSE](LICENSE)
 
-Copyright (c) 2024 Rails Blueprint
+Copyright (c) 2025 Rails Blueprint
 
 ---
 
