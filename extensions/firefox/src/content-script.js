@@ -14,10 +14,13 @@ window.addEventListener('message', (event) => {
 
   // Check if it's a console message
   if (event.data && event.data.__blueprintConsole) {
-    // Forward to background script
+    const message = event.data.__blueprintConsole;
+    // Forward to background script (must match ConsoleHandler expected format)
     browser.runtime.sendMessage({
-      type: 'console_message',
-      data: event.data.__blueprintConsole
+      type: 'console',
+      level: message.level,
+      text: message.text,
+      timestamp: message.timestamp
     }).catch(err => {
       // Ignore errors if background isn't listening
     });

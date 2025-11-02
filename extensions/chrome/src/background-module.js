@@ -174,10 +174,10 @@ if (chrome.alarms) {
   });
 }
 
-// Set up CDP debugger event listener for Network events
+// Set up CDP debugger event listener for Network and Runtime events
 chrome.debugger.onEvent.addListener((source, method, params) => {
-  // Only track Network events
-  if (!method.startsWith('Network.')) return;
+  // Only track Network and Runtime events
+  if (!method.startsWith('Network.') && !method.startsWith('Runtime.')) return;
 
   // Only track events for the currently attached tab
   if (!currentDebuggerTabId || source.tabId !== currentDebuggerTabId) return;
@@ -239,9 +239,37 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
         }
         break;
       }
+
+      case 'Runtime.consoleAPICalled': {
+        // Capture ALL console messages (page + extensions) via CDP
+        const level = params.type; // 'log', 'warning', 'error', 'info', 'debug', etc
+        const args = params.args || [];
+
+        // Convert CDP RemoteObject arguments to strings
+        const text = args.map(arg => {
+          if (arg.value !== undefined) {
+            return String(arg.value);
+          } else if (arg.description) {
+            return arg.description;
+          } else if (arg.type) {
+            return `[${arg.type}]`;
+          }
+          return '';
+        }).join(' ');
+
+        // Add console message via ConsoleHandler
+        consoleHandler.addMessage({
+          tabId: source.tabId,
+          level: level === 'warning' ? 'warn' : level, // Normalize 'warning' to 'warn'
+          text: text,
+          timestamp: Date.now(),
+          url: params.stackTrace?.callFrames?.[0]?.url || 'unknown'
+        });
+        break;
+      }
     }
   } catch (error) {
-    logger.log(`[Background] Error handling CDP Network event ${method}:`, error);
+    logger.log(`[Background] Error handling CDP event ${method}:`, error);
   }
 });
 
@@ -357,6 +385,18 @@ async function ensureDebuggerAttached() {
       logger.log(`[Background] Enabled Network domain for tab ${attachedTabId}`);
     } catch (netError) {
       logger.log(`[Background] Warning: Could not enable Network domain: ${netError.message}`);
+    }
+
+    // Enable Runtime domain for console message capture (captures ALL console logs including extensions!)
+    try {
+      await chrome.debugger.sendCommand(
+        { tabId: attachedTabId },
+        'Runtime.enable',
+        {}
+      );
+      logger.log(`[Background] Enabled Runtime domain for console capture on tab ${attachedTabId}`);
+    } catch (runtimeError) {
+      logger.log(`[Background] Warning: Could not enable Runtime domain: ${runtimeError.message}`);
     }
   } catch (error) {
     debuggerAttached = false;

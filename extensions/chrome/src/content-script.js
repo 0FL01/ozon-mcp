@@ -3,7 +3,26 @@
  * - Watches for OAuth tokens in DOM (login flow)
  * - Detects tech stack (frameworks, libraries, CSS frameworks)
  * - Sends tech stack info to background script
+ * - Forwards console messages from injected script to background
  */
+
+// Listen for console messages from injected script
+window.addEventListener('message', (event) => {
+  // Only accept messages from same window
+  if (event.source !== window) return;
+
+  // Check for console message from injected script
+  if (event.data && event.data.__blueprintConsole) {
+    const message = event.data.__blueprintConsole;
+    // Forward to background script
+    chrome.runtime.sendMessage({
+      type: 'console',
+      level: message.level,
+      text: message.text,
+      timestamp: message.timestamp
+    });
+  }
+});
 
 // Watch for a div with class 'mcp-extension-tokens' containing data attributes
 const observer = new MutationObserver(() => {
