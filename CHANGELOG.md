@@ -1,3 +1,10 @@
+# v1.9.3 (2025-11-02)
+
+## Changes
+
+- Fix browser_list showing incorrect 'FREE mode' error in PRO mode (#11)
+
+
 # v1.9.2 (2025-11-02)
 
 ## Changes
