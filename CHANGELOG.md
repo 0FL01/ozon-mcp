@@ -1,3 +1,10 @@
+# v1.9.0 (2025-11-02)
+
+## Changes
+
+- Implement CDP-based console capture for extension debugging (#8)
+
+
 # v1.8.2 (2025-11-01)
 
 ## Changes
