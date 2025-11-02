@@ -1,3 +1,10 @@
+# v1.9.1 (2025-11-02)
+
+## Changes
+
+- Fix browser_tabs attach action to not steal focus by default (#9)
+
+
 # v1.9.0 (2025-11-02)
 
 ## Changes
