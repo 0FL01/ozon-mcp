@@ -205,7 +205,7 @@ export class TabHandlers {
    */
   async selectTab(params) {
     const tabIndex = params.tabIndex;
-    const activate = params.activate !== false;
+    const activate = params.activate ?? false; // Default to false - don't steal focus
     const stealth = params.stealth ?? false;
 
     // Get all tabs

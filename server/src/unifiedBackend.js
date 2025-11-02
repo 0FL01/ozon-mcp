@@ -825,7 +825,7 @@ class UnifiedBackend {
     if (action === 'attach') {
       const result = await this._transport.sendCommand('selectTab', {
         tabIndex: args.index,
-        activate: args.activate !== false,
+        activate: args.activate ?? false, // Default to false - don't steal focus
         stealth: args.stealth || false
       });
 
