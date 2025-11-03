@@ -41,8 +41,18 @@ const sharedDest = path.join(distDir, 'shared');
 copyDirectory(sharedSrc, sharedDest);
 console.log('✓ Shared modules copied\n');
 
+// Write build timestamp
+const buildTimestamp = new Date().toISOString();
+const buildInfoPath = path.join(distDir, 'build-info.json');
+fs.writeFileSync(buildInfoPath, JSON.stringify({
+  timestamp: buildTimestamp,
+  timestampUnix: Date.now()
+}, null, 2));
+console.log('✓ Build timestamp written\n');
+
 console.log('✅ Build complete!\n');
 console.log('📍 Extension ready at: dist/firefox');
+console.log(`🕐 Build timestamp: ${buildTimestamp}`);
 console.log('📝 Load in Firefox: about:debugging#/runtime/this-firefox\n');
 
 /**

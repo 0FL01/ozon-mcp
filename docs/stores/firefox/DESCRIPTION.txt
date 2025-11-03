@@ -1,0 +1,214 @@
+Give Claude Code (and other AI assistants) direct control of your real Firefox browser
+
+Stop wrestling with headless browsers, bot detection, and authentication flows. Blueprint MCP for Firefox bridges the Model Context Protocol (MCP) with your actual Firefox browser - keeping you logged into all your sites, preserving your extensions, and using your real browser fingerprint.
+
+THE CRITICAL ADVANTAGE: Efficient browser automation that does not consume your AI's context. Instead of sending massive page snapshots with every action (which quickly exhausts context limits and often exceeds MCP response size limits), Blueprint MCP lets your AI interact directly - click, type, navigate - and only fetch page content when specifically needed. This enables complex, multi-step workflows that would be impossible with snapshot-based approaches.
+
+Perfect for developers using Claude Code, Claude Desktop, Cursor, or any MCP-compatible AI client who need to automate web tasks without the headaches of Playwright/Puppeteer/Selenium.
+
+WHY BLUEPRINT MCP + CLAUDE CODE CHANGES EVERYTHING
+
+The problem: Traditional browser automation requires sending full page snapshots after every action, consuming thousands of tokens per interaction and hitting response size limits. You also lose logged-in sessions, face bot detection, and spend time configuring browser profiles.
+
+The solution: Blueprint MCP connects your AI assistant to your real Firefox browser through direct commands. Your AI controls the browser - click, type, navigate - without needing page snapshots unless explicitly requested. This preserves context for actual decision-making instead of wasting it on redundant page content.
+
+What this enables:
+• AI-powered web scraping that bypasses bot detection
+• Automated form filling with your saved passwords
+• Testing workflows using your logged-in accounts
+• Content extraction from authenticated sites
+• Browser automation that works with 2FA and CAPTCHAs
+
+KEY FEATURES
+
+Real Browser Automation:
+• Uses your actual Firefox profile - Stays logged into Gmail, GitHub, AWS, etc.
+• Stealth mode - No bot detection. Uses your real browser fingerprint
+• Extension support - Works alongside your existing Firefox extensions
+• Session persistence - No re-authentication needed
+
+Native MCP Integration:
+• 20+ browser tools exposed via Model Context Protocol
+• Tab management - Create, switch, close tabs programmatically
+• Content extraction - Get page content as clean Markdown
+• Network monitoring - Capture requests, replay with authentication
+• JavaScript execution - Run code in page context
+
+Developer Experience:
+• Zero setup - Install extension, works instantly
+• Auto-reconnection - Survives browser restarts
+• Debug mode - Verbose logging for troubleshooting
+• Status visibility - Real-time connection status
+
+Two Connection Modes:
+• Free (Local) - WebSocket on localhost:5555, no cloud dependencies
+• PRO (Cloud Relay) - Control browser from anywhere, multiple AI clients
+
+Comprehensive Automation:
+• Screenshots (viewport or elements)
+• Content extraction as Markdown
+• Form automation (fill, dropdowns, file uploads)
+• Mouse/keyboard control (click, type, hover, scroll)
+• Tech stack detection (40+ frameworks)
+
+Advanced Capabilities:
+• Network request monitoring with filters
+• Network request replay
+• Extension management
+• Element visibility verification
+• JavaScript execution
+
+HOW IT WORKS
+
+Architecture:
+AI Assistant (Claude Code) -> MCP Protocol -> MCP Server -> JSON-RPC over WebSocket -> Firefox Extension (this) -> Firefox WebExtensions APIs -> Your Firefox Browser
+
+Setup (3 steps, 2 minutes):
+1. Install MCP server: npm install -g @railsblueprint/blueprint-mcp
+2. Install this Firefox extension
+3. Configure AI client: claude mcp add browser npx @railsblueprint/blueprint-mcp@latest
+
+The extension auto-connects when your AI client starts the MCP server.
+
+USE CASES
+
+1. Authenticated Web Scraping
+Before: Manually log in, navigate, copy-paste data. Bot detection, session timeouts.
+With Blueprint MCP: "Go to dashboard.company.com and extract the Q4 metrics table" - Uses your logged-in session automatically.
+
+2. Multi-Step Form Automation
+Before: 2 hours/week manually filling vendor forms across 5 portals.
+With Blueprint MCP: "Fill out the vendor forms with my company info" - 2 hours -> 5 minutes.
+
+3. Testing Logged-In Workflows
+Before: Create test accounts, configure webhooks, manual testing.
+With Blueprint MCP: "Test the upgrade flow from free to pro" - Tests with real authentication.
+
+4. Documentation Screenshots
+Before: 3+ hours manually capturing and editing screenshots.
+With Blueprint MCP: "Generate screenshots for all onboarding steps" - Consistent screenshots in minutes.
+
+5. API Testing via Browser
+Before: Copy cookies manually, troubleshoot auth, replay requests.
+With Blueprint MCP: "Capture API calls when I click Submit and replay them" - Debug with actual browser authentication.
+
+TECHNICAL DETAILS
+
+Available MCP Tools (20+):
+Connection: enable, disable, status, auth, browser_connect
+Tabs: browser_tabs (list/new/attach/close)
+Navigation: browser_navigate (url/back/forward/reload)
+Content: browser_take_screenshot, browser_extract_content, browser_console_messages, browser_network_requests
+Interaction: browser_interact (click/type/hover/scroll), browser_fill_form, browser_lookup, browser_drag
+Advanced: browser_evaluate, browser_verify_text_visible, browser_verify_element_visible
+Extensions: browser_list_extensions, browser_reload_extensions
+
+API Capabilities:
+• CSS selectors + :has-text() pseudo-selector
+• Network monitoring with filters (URL, method, status, type)
+• JSONPath filtering for large JSON responses
+• JavaScript execution with async/await support
+
+Firefox-Specific Limitations:
+• browser_snapshot not available (Firefox doesn't support Accessibility.getFullAXTree CDP method)
+• browser_handle_dialog not available (Firefox doesn't support Page.handleJavaScriptDialog CDP method)
+• browser_pdf_save not available (Firefox doesn't support Page.printToPDF CDP method)
+• browser_performance_metrics not available (Firefox doesn't support Target.getTargetInfo CDP method)
+• browser_window resize/maximize not available (Firefox doesn't support Emulation.setDeviceMetricsOverride CDP method)
+• Forced pseudo-states (:hover, :focus) not available (Firefox doesn't support DOM.enable CDP method)
+
+For these features, Chrome/Edge (Chromium) is recommended. See compatibility documentation for workarounds.
+
+General Limitations:
+• Cannot automate about: pages (Firefox restriction)
+• Free tier: Local connection only (same machine)
+• Screenshot size limit: 10MB
+• Network history limit: 1000 requests
+
+Requirements:
+• Firefox 128+ (for Manifest V3 support)
+• Node.js 18+ (for MCP server)
+• MCP-compatible AI client
+• Port 5555 available (Free tier)
+
+SECURITY & PRIVACY
+
+Free Tier (Local Mode):
+• All communication stays on your machine (localhost WebSocket)
+• Zero data sent to cloud
+• No tracking, telemetry, or analytics
+• Works completely offline
+• No account required
+
+PRO Tier (Cloud Relay):
+• Commands and responses pass through relay (including page content/screenshots when requested)
+• OAuth2 tokens stored locally (encrypted by Firefox)
+• No logging - data passes through relay but is not stored or logged anywhere
+• Your browsing activity is not tracked or monitored
+
+Permissions Explained:
+tabs - Tab management (list, create, switch, close)
+activeTab - Current tab access for content reading
+storage - Local preferences and OAuth tokens (PRO)
+webRequest - Network monitoring for capture/replay
+webNavigation - Detect page loads, clear stale state
+scripting - Content script injection for tech detection
+management - Extension listing/reloading
+<all_urls> - Required for automation on any site (your data NEVER leaves your machine in Free tier)
+
+What We DON'T Collect:
+Browsing history, page content, cookies, form inputs, passwords, personal info, analytics
+
+Open Source:
+• Full source: https://github.com/railsblueprint/blueprint-mcp
+• Apache 2.0 license
+• Audit the code yourself
+
+PRICING
+
+Free Tier - $0/month
+• All 20+ browser automation tools
+• Local WebSocket connection
+• Unlimited usage
+• Zero cloud dependencies
+• Same machine only
+
+PRO Tier - $5/month or $50/year ($1 for 14-day trial)
+Everything in Free, plus:
+• Cloud Relay (control from anywhere)
+• Multiple browsers
+• Multi-client access
+• Auto-reconnection
+• Priority support
+
+Upgrade: https://blueprint-mcp.railsblueprint.com/pro
+
+Enterprise - Custom pricing
+Self-hosted relay, custom integrations, SLA guarantees. Contact: support@railsblueprint.com
+
+SUPPORT
+
+Documentation: https://github.com/railsblueprint/blueprint-mcp
+Firefox Compatibility: https://github.com/railsblueprint/blueprint-mcp/blob/main/docs/FIREFOX_COMPATIBILITY.md
+GitHub Issues: https://github.com/railsblueprint/blueprint-mcp/issues
+Email: support@railsblueprint.com
+
+Troubleshooting:
+
+Not connecting?
+1. Check MCP server running: npx @railsblueprint/blueprint-mcp@latest --debug
+2. Verify port 5555 available
+3. Check extension popup shows "Connected"
+4. Review debug logs in Browser Console
+
+AI can't find tools?
+1. Verify MCP server in AI client config
+2. Restart AI client after config change
+3. Run enable tool first to activate
+
+Need help? Open GitHub issue with Firefox/extension version, MCP server version, AI client used, and debug logs.
+
+Blueprint MCP for Firefox - Give your AI assistant the browser automation it deserves.
+
+https://blueprint-mcp.railsblueprint.com
+https://github.com/railsblueprint/blueprint-mcp

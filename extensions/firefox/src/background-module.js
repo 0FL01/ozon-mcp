@@ -58,6 +58,18 @@ const logger = new Logger('Blueprint MCP for Firefox');
 await logger.init(browser);
 logger.logAlways('[Background] Extension loaded (modular version)');
 
+// Read build timestamp (read once at startup)
+let buildTimestamp = null;
+try {
+  const buildInfoUrl = browser.runtime.getURL('build-info.json');
+  const response = await fetch(buildInfoUrl);
+  const buildInfo = await response.json();
+  buildTimestamp = buildInfo.timestamp;
+  logger.log(`Build timestamp: ${buildTimestamp}`);
+} catch (e) {
+  logger.log('Could not read build-info.json:', e.message);
+}
+
 // Initialize all managers and handlers
 const iconManager = new IconManager(browser, logger);
 const tabHandlers = new TabHandlers(browser, logger, iconManager);
@@ -156,7 +168,7 @@ browser.webNavigation.onCompleted.addListener(async (details) => {
 });
 
 // Initialize WebSocket connection
-const wsConnection = new WebSocketConnection(browser, logger, iconManager);
+const wsConnection = new WebSocketConnection(browser, logger, iconManager, buildTimestamp);
 
 // Register command handlers with WebSocket connection
 wsConnection.registerCommandHandler('getTabs', async () => {
