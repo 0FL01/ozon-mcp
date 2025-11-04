@@ -33,6 +33,7 @@ copyDirectory(chromeSrc, distDir, {
     'dist',
     'src',  // We'll copy specific src files
     'tests',
+    'public',  // Dev test files, not needed in production
     'package.json',
     'package-lock.json',
     'tsconfig.json',
@@ -43,6 +44,7 @@ copyDirectory(chromeSrc, distDir, {
     'eslint.config.mjs',
     '.gitignore',
     '.DS_Store',
+    '.env.example',
     'README.md'
   ]
 });

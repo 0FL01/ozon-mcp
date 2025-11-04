@@ -197,9 +197,9 @@ echo ""
 # Package Chrome extension
 CHROME_ZIP="releases/chrome/blueprint-mcp-chrome-v$NEW_VERSION.zip"
 echo "  → Creating $CHROME_ZIP..."
-cd extensions/chrome/dist
-zip -r ../../../$CHROME_ZIP . -q
-cd ../../..
+cd dist/chrome
+zip -r ../../$CHROME_ZIP . -q
+cd ../..
 echo "  ✅ Chrome extension packaged: $CHROME_ZIP"
 
 # Package Firefox extension
