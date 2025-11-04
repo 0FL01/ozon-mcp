@@ -1,3 +1,17 @@
+# v1.9.5 (2025-11-04)
+
+## Changes
+
+- Apply build exclusions to Firefox, Opera, and Safari build scripts
+- Fix Chrome extension build and packaging issues (v1.9.5)
+- Add Firefox improvements and Edge extension support (#13)
+- Add Opera Add-ons store submission materials
+- Fix Opera extension version to 1.9.4
+- Update release script summary to include Opera extension
+- Update Opera package and release script
+- Add Opera extension package to v1.9.4 release
+
+
 # v1.9.4 (2025-11-02)
 
 ## Changes
