@@ -185,6 +185,13 @@ cd extensions
 node build-opera.js > /dev/null 2>&1
 cd ..
 echo "  ✅ Opera extension built"
+
+# Build Edge extension (uses Chrome source)
+echo "  → Building Edge extension..."
+cd extensions
+node build-edge.js > /dev/null 2>&1
+cd ..
+echo "  ✅ Edge extension built"
 echo ""
 
 # ============================================================================
@@ -223,6 +230,17 @@ zip -r ../../$OPERA_ZIP . -q \
   -x "build-info.json"
 cd ../..
 echo "  ✅ Opera extension packaged: $OPERA_ZIP"
+
+# Package Edge extension
+EDGE_ZIP="releases/edge/blueprint-mcp-edge-v$NEW_VERSION.zip"
+echo "  → Creating $EDGE_ZIP..."
+cd dist/edge
+zip -r ../../$EDGE_ZIP . -q \
+  -x "*.DS_Store" \
+  -x "*.env*" \
+  -x "build-info.json"
+cd ../..
+echo "  ✅ Edge extension packaged: $EDGE_ZIP"
 echo ""
 
 # ============================================================================
