@@ -267,6 +267,7 @@ git add \
   releases/chrome/blueprint-mcp-chrome-v$NEW_VERSION.zip \
   releases/firefox/blueprint-mcp-firefox-v$NEW_VERSION.zip \
   releases/opera/blueprint-mcp-opera-v$NEW_VERSION.zip \
+  releases/edge/blueprint-mcp-edge-v$NEW_VERSION.zip \
   CHANGELOG.md
 
 # Commit
@@ -274,7 +275,7 @@ git commit -m "Release v$NEW_VERSION
 
 - Bump version to $NEW_VERSION
 - Update CHANGELOG
-- Package Chrome, Firefox, and Opera extensions for store submission"
+- Package Chrome, Firefox, Opera, and Edge extensions for store submission"
 
 echo "  ✅ Changes committed"
 
@@ -345,6 +346,7 @@ echo "  • Git tag: v$NEW_VERSION"
 echo "  • Chrome zip: $CHROME_ZIP"
 echo "  • Firefox zip: $FIREFOX_ZIP"
 echo "  • Opera zip: $OPERA_ZIP"
+echo "  • Edge zip: $EDGE_ZIP"
 echo ""
 echo "📝 Next steps:"
 echo "  1. Upload Chrome extension to Chrome Web Store:"
@@ -359,7 +361,11 @@ echo "  3. Upload Opera extension to Opera Add-ons:"
 echo "     → Open: https://addons.opera.com/developer"
 echo "     → Upload: $OPERA_ZIP"
 echo ""
-echo "  4. Update GitHub release notes:"
+echo "  4. Upload Edge extension to Microsoft Edge Add-ons:"
+echo "     → Open: https://partner.microsoft.com/dashboard/microsoftedge/overview"
+echo "     → Upload: $EDGE_ZIP"
+echo ""
+echo "  5. Update GitHub release notes:"
 echo "     → Open: https://github.com/railsblueprint/blueprint-mcp/releases/tag/v$NEW_VERSION"
 echo "     → Add release notes from CHANGELOG.md"
 echo ""
