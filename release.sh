@@ -121,6 +121,15 @@ manifest.version = '$NEW_VERSION';
 fs.writeFileSync('extensions/opera/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
 "
 
+# Update Edge manifest.json
+echo "  → Updating extensions/edge/manifest.json..."
+node -e "
+const fs = require('fs');
+const manifest = JSON.parse(fs.readFileSync('extensions/edge/manifest.json', 'utf8'));
+manifest.version = '$NEW_VERSION';
+fs.writeFileSync('extensions/edge/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+"
+
 echo "  ✅ All versions updated to $NEW_VERSION"
 echo ""
 
@@ -264,6 +273,7 @@ git add \
   extensions/chrome/manifest.json \
   extensions/firefox/manifest.json \
   extensions/opera/manifest.json \
+  extensions/edge/manifest.json \
   releases/chrome/blueprint-mcp-chrome-v$NEW_VERSION.zip \
   releases/firefox/blueprint-mcp-firefox-v$NEW_VERSION.zip \
   releases/opera/blueprint-mcp-opera-v$NEW_VERSION.zip \
