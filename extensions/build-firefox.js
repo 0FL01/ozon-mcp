@@ -31,7 +31,11 @@ console.log('✓ Created dist/firefox\n');
 // Copy firefox extension files
 console.log('📦 Copying Firefox extension files...');
 copyDirectory(firefoxSrc, distDir, {
-  exclude: ['shared', 'node_modules', 'public', 'package.json', 'package-lock.json', '.env.example', '.gitignore']
+  exclude: ['shared', 'node_modules', 'public', 'package.json', 'package-lock.json', '.env.example', '.gitignore', 'PRO_MODE.md'],
+  fileFilter: (filename) => {
+    // Exclude logo source files (1.5MB total, not used in runtime)
+    return !filename.includes('logo-source');
+  }
 });
 console.log('✓ Firefox files copied\n');
 
@@ -82,6 +86,10 @@ function copyDirectory(src, dest, options = {}) {
       // Recursively copy directory
       copyDirectory(srcPath, destPath, options);
     } else if (entry.isFile()) {
+      // Check fileFilter if provided
+      if (options.fileFilter && !options.fileFilter(entry.name)) {
+        continue;
+      }
       // Copy file
       fs.copyFileSync(srcPath, destPath);
     }

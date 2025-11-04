@@ -46,7 +46,11 @@ copyDirectory(chromeSrc, distDir, {
     '.DS_Store',
     '.env.example',
     'README.md'
-  ]
+  ],
+  fileFilter: (filename) => {
+    // Exclude logo source files (1.5MB total, not used in runtime)
+    return !filename.includes('logo-source');
+  }
 });
 
 // Create src directory in dist
@@ -113,6 +117,10 @@ function copyDirectory(src, dest, options = {}) {
       // Recursively copy directory
       copyDirectory(srcPath, destPath, options);
     } else {
+      // Check fileFilter if provided
+      if (options.fileFilter && !options.fileFilter(entry.name)) {
+        continue;
+      }
       // Copy file
       fs.copyFileSync(srcPath, destPath);
     }
