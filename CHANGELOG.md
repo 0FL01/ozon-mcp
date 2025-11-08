@@ -1,3 +1,10 @@
+# v1.9.8 (2025-11-08)
+
+## Changes
+
+- Fix WebSocket connection stability issues (#19)
+
+
 # v1.9.7 (2025-11-08)
 
 ## Changes

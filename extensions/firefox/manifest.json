@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Blueprint MCP for Firefox",
-  "version": "1.9.7",
+  "version": "1.9.8",
   "description": "Firefox extension for Blueprint MCP - browser automation via Model Context Protocol",
   "browser_specific_settings": {
     "gecko": {
