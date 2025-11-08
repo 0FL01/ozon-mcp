@@ -506,12 +506,12 @@ class UnifiedBackend {
       // Extension management
       {
         name: 'browser_list_extensions',
-        description: 'List installed Chrome extensions',
+        description: 'List installed browser extensions',
         inputSchema: { type: 'object', properties: {} }
       },
       {
         name: 'browser_reload_extensions',
-        description: 'Reload unpacked/development Chrome extensions. Only works for extensions loaded from a folder (chrome://extensions -> "Load unpacked"). Does not work for packed extensions from Chrome Web Store.',
+        description: 'Reload unpacked/development browser extensions. Only works for extensions loaded from a folder. Does not work for packed extensions installed from browser web stores.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -586,7 +586,7 @@ class UnifiedBackend {
             } else if (browsers.length === 1) {
               errorText += `**Found 1 browser:** ${browsers[0].name}\n\n`;
               errorText += `Reconnection to this browser failed. **Please try:**\n`;
-              errorText += `1. Reload the extension: chrome://extensions/ → Reload\n`;
+              errorText += `1. Reload the extension in your browser\n`;
               errorText += `2. Wait a few seconds\n`;
               errorText += `3. Try this command again (auto-reconnect will retry)`;
             } else {
@@ -4484,7 +4484,7 @@ This request was captured by the browser extension's background tracker (webRequ
     return {
       content: [{
         type: 'text',
-        text: `### Chrome Extensions\n\nTotal: ${result.count}\n\n${extList}`
+        text: `### Browser Extensions\n\nTotal: ${result.count}\n\n${extList}`
       }],
       isError: false
     };
@@ -4505,7 +4505,7 @@ This request was captured by the browser extension's background tracker (webRequ
     // If user tried to reload a packed extension, explain why it didn't work
     if (skippedPacked.length > 0) {
       text += `\n\n⚠️ **Skipped (packed extensions):** ${skippedPacked.join(', ')}`;
-      text += `\n\n**Note:** Only unpacked/development extensions can be reloaded. Packed extensions (from Chrome Web Store or .crx files) must be manually updated.`;
+      text += `\n\n**Note:** Only unpacked/development extensions can be reloaded. Packed extensions (from browser web stores or package files) must be manually updated.`;
     }
 
     return {
@@ -4528,7 +4528,7 @@ This request was captured by the browser extension's background tracker (webRequ
 
     const url = pageInfo.targetInfo?.url;
     if (!url || url.startsWith('chrome://') || url.startsWith('about:')) {
-      throw new Error('Cannot get metrics for chrome:// or about:// pages. Please navigate to a web page first.');
+      throw new Error('Cannot get metrics for browser internal pages (chrome://, about://). Please navigate to a web page first.');
     }
 
     try {

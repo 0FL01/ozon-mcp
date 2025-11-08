@@ -187,7 +187,7 @@ class StatefulBackend {
     const connectionTools = [
       {
         name: 'enable',
-        description: 'STEP 1: Enable browser automation. Activates the Chrome extension connection and makes browser_ tools available. Provide a client_id (e.g., your project name) for stable connection tracking. In PRO mode with multiple browsers, this will return a list to choose from.',
+        description: 'STEP 1: Enable browser automation. Activates the browser extension connection and makes browser_ tools available. Provide a client_id (e.g., your project name) for stable connection tracking. In PRO mode with multiple browsers, this will return a list to choose from.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -211,7 +211,7 @@ class StatefulBackend {
       },
       {
         name: 'disable',
-        description: 'Disable browser automation and return to passive mode. Closes Chrome extension connection. After this, browser_ tools will not work until you call enable again.',
+        description: 'Disable browser automation and return to passive mode. Closes browser extension connection. After this, browser_ tools will not work until you call enable again.',
         inputSchema: { type: 'object', properties: {}, required: [] },
         annotations: {
           title: 'Disable browser automation',
@@ -487,7 +487,7 @@ class StatefulBackend {
       await this._activeBackend.initialize(this._server, this._clientInfo, this);
 
       this._state = 'active';
-      this._connectedBrowserName = 'Local Chrome';  // Store browser name for standalone mode
+      this._connectedBrowserName = 'Local Browser';  // Store browser name for standalone mode
 
       debugLog('[StatefulBackend] Standalone mode activated');
 
@@ -601,10 +601,10 @@ class StatefulBackend {
                         `**MCP Server:** v${version}\n` +
                         `**Tried:** ${maxRetries} times over 14 seconds\n\n` +
                         `The extension might still be connecting. Please:\n` +
-                        `1. Check that the Chrome extension is installed and enabled\n` +
+                        `1. Check that the browser extension is installed and enabled\n` +
                         `2. Click the extension icon to verify it shows "Connected"\n` +
                         `3. Wait a few seconds and try again\n\n` +
-                        `If the problem persists, try reloading the extension or restarting Chrome.`);
+                        `If the problem persists, try reloading the extension or restarting your browser.`);
       }
 
       if (browsers.length === 1) {
@@ -662,7 +662,7 @@ class StatefulBackend {
 
         this._proxyConnection = mcpConnection;
         this._state = 'connected';
-        this._connectedBrowserName = browsers[0].name || 'Chrome';  // Store browser name
+        this._connectedBrowserName = browsers[0].name || 'Browser';  // Store browser name
 
         debugLog('[StatefulBackend] Successfully auto-connected to single browser');
 
@@ -708,10 +708,10 @@ class StatefulBackend {
 
         // Format the browser list
         let browserList = '### 🔍 Multiple Browsers Found\n\n';
-        browserList += `Found ${browsers.length} Chrome browsers connected to the proxy:\n\n`;
+        browserList += `Found ${browsers.length} browsers connected to the proxy:\n\n`;
 
         browsers.forEach((browser, index) => {
-          browserList += `${index + 1}. **${browser.name || 'Chrome Browser'}**\n`;
+          browserList += `${index + 1}. **${browser.name || 'Browser'}**\n`;
           browserList += `   - ID: \`${browser.id}\`\n`;
           if (browser.version) {
             browserList += `   - Version: ${browser.version}\n`;
@@ -893,7 +893,7 @@ class StatefulBackend {
             text: `### No Browsers Available\n\n` +
                   `No browser extensions are currently connected to the relay.\n\n` +
                   `**To connect a browser:**\n` +
-                  `1. Open Chrome/Firefox with Blueprint MCP extension installed\n` +
+                  `1. Open your browser (Chrome/Firefox/Edge/Opera) with Blueprint MCP extension installed\n` +
                   `2. Extension should auto-connect to the relay\n` +
                   `3. Call \`browser_list\` again to see it`
           }],
@@ -1129,7 +1129,7 @@ class StatefulBackend {
 
       this._proxyConnection = mcpConnection;
       this._state = 'connected';
-      this._connectedBrowserName = selectedBrowser.name || 'Chrome';  // Store browser name
+      this._connectedBrowserName = selectedBrowser.name || 'Browser';  // Store browser name
       this._lastConnectedBrowserId = selectedBrowser.id; // Remember for auto-reconnect
       this._browserDisconnected = false; // Reset disconnected flag
       this._availableBrowsers = null; // Clear the cache

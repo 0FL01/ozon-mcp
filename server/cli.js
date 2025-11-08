@@ -39,7 +39,7 @@ function resolveConfig(options) {
     debug: options.debug === true,
     port: options.port || 5555,
     server: {
-      name: 'Blueprint MCP for Chrome',
+      name: 'Blueprint MCP for Browser',
       version: packageJSON.version
     }
   };
@@ -225,8 +225,8 @@ const program = new Command();
 
 program
   .version('Version ' + packageJSON.version)
-  .name('Blueprint MCP for Chrome')
-  .description('MCP server for Chrome browser automation using the Blueprint MCP extension')
+  .name('Blueprint MCP for Browser')
+  .description('MCP server for browser automation (Chrome, Firefox, Edge, Opera) using the Blueprint MCP extension')
   .option('--debug', 'Enable debug mode (shows reload/extension tools and verbose logging)')
   .option('--log-file <path>', 'Custom log file path (default: logs/mcp-debug.log)')
   .option('--port <number>', 'WebSocket server port (default: 5555)', parseInt)
