@@ -1,3 +1,14 @@
+# v1.9.7 (2025-11-08)
+
+## Changes
+
+- Fix outdated project structure in README (#18)
+- Update README to be browser-agnostic and add published extension links (#17)
+- Refactor naming to be browser-agnostic (#16)
+- Fix Edge version: update manifest to 1.9.6 and fix release script
+- Fix release script: include Edge extension in releases
+
+
 # v1.9.6 (2025-11-04)
 
 ## Changes
