@@ -218,28 +218,33 @@ git clone https://github.com/railsblueprint/blueprint-mcp.git
 cd blueprint-mcp
 
 # Install server dependencies
-npm install
-
-# Install extension dependencies
-cd extension
+cd server
 npm install
 cd ..
+
+# Install Chrome extension dependencies
+cd extensions/chrome
+npm install
+cd ../..
 ```
 
 ### Running in Development
 
 **Terminal 1: Start MCP server in debug mode**
 ```bash
+cd server
 node cli.js --debug
 ```
 
-**Terminal 2: Build extension**
+**Terminal 2: Build Chrome extension**
 ```bash
-cd extension
+cd extensions/chrome
 npm run build
 # or for watch mode:
 npm run dev
 ```
+
+**Note:** Firefox extension doesn't require a build step - it uses vanilla JavaScript and can be loaded directly from `extensions/firefox/`
 
 **Load extension in your browser:**
 
@@ -258,20 +263,38 @@ For Firefox:
 
 ```
 blueprint-mcp/
-├── cli.js                      # MCP server entry point
-├── src/
-│   ├── statefulBackend.js      # Connection state management
-│   ├── unifiedBackend.js       # MCP tool implementations
-│   ├── extensionServer.js      # WebSocket server for extension
-│   ├── mcpConnection.js        # Proxy/relay connection handling
-│   ├── transport.js            # Transport abstraction layer
-│   └── oauth.js                # OAuth2 client for PRO features
-├── extension/
-│   └── src/
-│       ├── background.ts       # Extension service worker
-│       ├── relayConnection.ts  # WebSocket client
-│       └── utils/              # Utility functions
-└── tests/                      # Test suites
+├── server/                     # MCP Server
+│   ├── cli.js                  # Server entry point
+│   ├── src/
+│   │   ├── statefulBackend.js  # Connection state management
+│   │   ├── unifiedBackend.js   # MCP tool implementations
+│   │   ├── extensionServer.js  # WebSocket server for extension
+│   │   ├── mcpConnection.js    # Proxy/relay connection handling
+│   │   ├── transport.js        # Transport abstraction layer
+│   │   ├── oauth.js            # OAuth2 client for PRO features
+│   │   └── fileLogger.js       # Debug logging
+│   └── tests/                  # Server test suites
+├── extensions/                 # Browser Extensions
+│   ├── chrome/                 # Chrome extension (TypeScript + Vite)
+│   │   └── src/
+│   │       ├── background.ts   # Extension service worker
+│   │       ├── content-script.ts # Page content injection
+│   │       └── utils/          # Utility functions
+│   ├── firefox/                # Firefox extension (Vanilla JS)
+│   │   └── src/
+│   │       ├── background.js   # Service worker
+│   │       └── content-script.js # Page injection
+│   ├── shared/                 # Shared code between extensions
+│   └── build-*.js              # Build scripts for each browser
+├── docs/                       # Documentation
+│   ├── testing/                # Test documentation
+│   ├── architecture/           # Architecture docs
+│   └── stores/                 # Browser store assets
+└── releases/                   # Built extensions for distribution
+    ├── chrome/
+    ├── firefox/
+    ├── edge/
+    └── opera/
 ```
 
 ### Testing
