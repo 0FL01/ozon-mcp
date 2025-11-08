@@ -13,14 +13,14 @@ An MCP (Model Context Protocol) server that lets AI assistants control your actu
 
 ## Why use this instead of Playwright/Puppeteer?
 
-| Blueprint MCP for Chrome | Playwright/Puppeteer |
+| Blueprint MCP | Playwright/Puppeteer |
 |-------------------------|---------------------|
 | ✅ Real browser (not headless) | ❌ Headless or new browser instance |
 | ✅ Stays logged in to all your sites | ❌ Must re-authenticate each session |
 | ✅ Avoids bot detection (uses real fingerprint) | ⚠️ Often detected as automated browser |
 | ✅ Works with your existing browser extensions | ❌ No extension support |
 | ✅ Zero setup - works out of the box | ⚠️ Requires browser installation |
-| ✅ Chrome, Firefox, Opera support | ✅ Chrome, Firefox, Safari support |
+| ✅ Chrome, Firefox, Edge, Opera support | ✅ Chrome, Firefox, Safari support |
 
 ## Installation
 
@@ -34,16 +34,13 @@ npm install -g @railsblueprint/blueprint-mcp
 
 Choose your browser:
 
-**Chrome**
-- Option A: [Chrome Web Store](https://chrome.google.com/webstore) - Coming Soon
-- Option B: Manual - Download from [Releases](https://github.com/railsblueprint/blueprint-mcp/releases), then load unpacked at `chrome://extensions/`
+**Chrome / Edge / Opera**
+- [Chrome Web Store](https://chromewebstore.google.com/detail/blueprint-mcp-for-chrome/kpfkpbkijebomacngfgljaendniocdfp) (works for all Chromium browsers)
+- Manual: Download from [Releases](https://github.com/railsblueprint/blueprint-mcp/releases), then load unpacked at `chrome://extensions/` (Chrome), `edge://extensions/` (Edge), or `opera://extensions/` (Opera)
 
 **Firefox**
-- Option A: [Firefox Add-ons](https://addons.mozilla.org/) - Coming Soon
-- Option B: Manual - Download from [Releases](https://github.com/railsblueprint/blueprint-mcp/releases), then load at `about:debugging#/runtime/this-firefox`
-
-**Opera**
-- Manual Installation - Download from [Releases](https://github.com/railsblueprint/blueprint-mcp/releases), then load unpacked at `opera://extensions/`
+- [Firefox Add-ons](https://addons.mozilla.org/addon/blueprint-mcp-for-firefox/)
+- Manual: Download from [Releases](https://github.com/railsblueprint/blueprint-mcp/releases), then load at `about:debugging#/runtime/this-firefox`
 
 ### 3. Configure your MCP client
 
@@ -79,7 +76,7 @@ claude mcp add browser npx @railsblueprint/blueprint-mcp@latest
 ## Quick Start
 
 1. **Start your MCP client** (Claude Desktop, Cursor, etc.)
-2. **Click the Blueprint MCP extension icon** in Chrome
+2. **Click the Blueprint MCP extension icon** in your browser
 3. The extension auto-connects to the MCP server
 4. **Ask your AI assistant to browse!**
 
@@ -113,20 +110,20 @@ AI: *captures screenshot and shows you*
             │ stdio/JSON-RPC
             ↓
 ┌─────────────────────────┐
-│   blueprint-mcp            │
+│   blueprint-mcp         │
 │   (this package)        │
 └───────────┬─────────────┘
             │
             │ WebSocket (localhost:5555 or cloud relay)
             ↓
 ┌─────────────────────────┐
-│   Chrome Extension      │
+│   Browser Extension     │
 └───────────┬─────────────┘
             │
-            │ Chrome Extension APIs
+            │ Browser Extension APIs
             ↓
 ┌─────────────────────────┐
-│   Your Chrome Browser   │
+│   Your Browser          │
 │   (real profile)        │
 └─────────────────────────┘
 ```
@@ -142,7 +139,7 @@ AI: *captures screenshot and shows you*
 
 ### PRO Tier
 - ✅ **Cloud relay** - connect from anywhere
-- ✅ **Multiple browsers** - control multiple Chrome instances
+- ✅ **Multiple browsers** - control multiple browser instances
 - ✅ **Shared access** - multiple AI clients can use same browser
 - ✅ **Auto-reconnect** - maintains connection through network changes
 - ✅ **Priority support**
@@ -203,14 +200,14 @@ The MCP server provides these tools to AI assistants:
 - `browser_verify_element_visible` - Verify element exists (for testing)
 
 ### Extension Management
-- `browser_list_extensions` - List installed Chrome extensions
-- `browser_reload_extensions` - Reload extension (useful during development)
+- `browser_list_extensions` - List installed browser extensions
+- `browser_reload_extensions` - Reload unpacked extensions (useful during development)
 
 ## Development
 
 ### Prerequisites
 - Node.js 18+
-- Chrome or Edge browser
+- A supported browser (Chrome, Firefox, Edge, or Opera)
 - npm or yarn
 
 ### Setup
@@ -244,11 +241,18 @@ npm run build
 npm run dev
 ```
 
-**Chrome: Load unpacked extension**
-1. Open `chrome://extensions/`
+**Load extension in your browser:**
+
+For Chromium browsers (Chrome, Edge, Opera):
+1. Open `chrome://extensions/` (Chrome), `edge://extensions/` (Edge), or `opera://extensions/` (Opera)
 2. Enable "Developer mode"
 3. Click "Load unpacked"
-4. Select the `extension/dist` folder
+4. Select the `extensions/chrome/dist` folder
+
+For Firefox:
+1. Open `about:debugging#/runtime/this-firefox`
+2. Click "Load Temporary Add-on"
+3. Select any file from the `extensions/firefox` folder
 
 ### Project Structure
 
@@ -343,20 +347,21 @@ This tool gives AI assistants control over your browser. Please review:
 - The MCP server only accepts local connections by default (localhost:5555)
 - PRO relay connections are authenticated via OAuth
 - The extension requires explicit user action to connect
-- All browser actions go through Chrome's permission system
+- All browser actions go through the browser's permission system
 
 Found a security issue? Please email security@railsblueprint.com instead of filing a public issue.
 
 ## Credits
 
-This project was originally inspired by Microsoft's Playwright MCP implementation but has been completely rewritten to use Chrome extension-based automation instead of Playwright. The architecture, implementation, and approach are fundamentally different.
+This project was originally inspired by Microsoft's Playwright MCP implementation but has been completely rewritten to use browser extension-based automation instead of Playwright. The architecture, implementation, and approach are fundamentally different.
 
 **Key differences:**
-- Uses Chrome DevTools Protocol via extension (not Playwright)
+- Uses browser extensions with DevTools Protocol (not Playwright)
 - Works with real browser profiles (not isolated contexts)
 - WebSocket-based communication (not CDP relay)
 - Cloud relay option for remote access
 - Free and PRO tier model
+- Multi-browser support (Chrome, Firefox, Edge, Opera)
 
 We're grateful to the Playwright team for pioneering browser automation via MCP.
 
