@@ -38,7 +38,7 @@
     "cli.js",
     "src/",
     "scripts/",
-    "../README.md"
+    "README.md"
   ],
   "devDependencies": {
     "@types/node": "^24.3.0",
