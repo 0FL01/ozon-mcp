@@ -1,3 +1,10 @@
+# v1.9.10 (2025-11-10)
+
+## Changes
+
+- Improve npm package distribution and deprecate old package name (#21)
+
+
 # v1.9.9 (2025-11-09)
 
 ## Changes
