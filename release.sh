@@ -62,6 +62,11 @@ fi
 echo "📥 Pulling latest from origin/main..."
 git pull origin main -q
 
+# Copy README to server directory for npm package
+echo "📄 Copying README to server directory..."
+cp README.md server/README.md
+echo "  ✅ README copied"
+
 # ============================================================================
 # 2. VERSION BUMPING
 # ============================================================================
@@ -268,6 +273,7 @@ git add \
   package.json \
   server/package.json \
   server/package-lock.json \
+  server/README.md \
   extensions/chrome/package.json \
   extensions/chrome/package-lock.json \
   extensions/chrome/manifest.json \
