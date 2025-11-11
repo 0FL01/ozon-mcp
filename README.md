@@ -334,8 +334,12 @@ DEBUG=false
 ### Command Line Options
 
 ```bash
-blueprint-mcp --debug          # Enable verbose logging
+blueprint-mcp --debug              # Enable verbose logging
+blueprint-mcp --port 8080          # Use custom WebSocket port (default: 5555)
+blueprint-mcp --debug --port 8080  # Combine options
 ```
+
+**Note:** If you change the port, you'll need to update your browser extension settings to match.
 
 ## Troubleshooting
 
@@ -346,9 +350,16 @@ blueprint-mcp --debug          # Enable verbose logging
 4. Try reloading the extension
 
 ### "Port 5555 already in use"
-Another instance is running. Find and kill it:
+Another instance is running. You can either:
+
+1. Kill the existing process:
 ```bash
 lsof -ti:5555 | xargs kill -9
+```
+
+2. Use a different port:
+```bash
+blueprint-mcp --port 8080
 ```
 
 ### Browser tools not working
