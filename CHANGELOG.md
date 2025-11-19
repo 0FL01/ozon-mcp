@@ -1,3 +1,10 @@
+# v1.9.13 (2025-11-19)
+
+## Changes
+
+- Fix custom browser names not appearing in browser list (#25)
+
+
 # v1.9.12 (2025-11-11)
 
 ## Changes
