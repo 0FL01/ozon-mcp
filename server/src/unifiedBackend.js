@@ -292,7 +292,7 @@ class UnifiedBackend {
             quality: { type: 'number', description: 'JPEG quality 0-100 (default: 80)' },
             path: { type: 'string', description: 'Optional: file path to save screenshot. If provided, saves to disk instead of returning image data.' },
             highlightClickables: { type: 'boolean', description: 'Highlight clickable elements with green border and background (default: false)' },
-            deviceScale: { type: 'number', description: 'Device scale factor for pixel-perfect screenshots (default: 1 for 1:1, use 0 for device native)' },
+            deviceScale: { type: 'number', description: 'Output scale factor: 1 for 1:1 CSS pixels (default), 0 for native device resolution (2x on retina). Works with all screenshot types.' },
             selector: { type: 'string', description: 'CSS selector to screenshot (partial screenshot by element). Red highlight shown automatically after capture.' },
             padding: { type: 'number', description: 'Padding in pixels around selector (default: 0)' },
             clip_x: { type: 'number', description: 'Clip X coordinate (for coordinate-based partial screenshot)' },
@@ -3362,12 +3362,13 @@ class UnifiedBackend {
     let dimensions = sizeOf(buffer);
 
     // Downscale if needed for 1:1 screenshots
-    // IMPORTANT: Only resize full viewport screenshots, not partial screenshots (selector/clip)
-    const isPartialScreenshot = args.selector || (args.clip_x !== undefined);
-    if (deviceScale > 0 && deviceScale < (viewport.devicePixelRatio || 1) && !args.fullPage && !isPartialScreenshot) {
+    // All scaling handled here - extension captures at native resolution
+    const dpr = viewport.devicePixelRatio || 1;
+    if (deviceScale > 0 && deviceScale < dpr && !args.fullPage) {
       const sharp = require('sharp');
-      const targetWidth = Math.round(viewport.width * deviceScale);
-      const targetHeight = Math.round(viewport.height * deviceScale);
+      const scaleFactor = deviceScale / dpr;
+      const targetWidth = Math.round(dimensions.width * scaleFactor);
+      const targetHeight = Math.round(dimensions.height * scaleFactor);
 
       buffer = await sharp(buffer)
         .resize(targetWidth, targetHeight, {
