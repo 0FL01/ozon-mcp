@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Blueprint MCP for Chrome",
+  "name": "__MSG_extName__",
   "version": "1.9.14",
-  "description": "Browser automation for Claude without token limits. Uses CSS selectors, not snapshots. Open source, zero telemetry.",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
   "permissions": [
     "alarms",
     "debugger",

@@ -70,11 +70,18 @@ fs.copyFileSync(
 
 console.log('✓ Chrome files copied\n');
 
-// Copy shared modules
+// Copy shared modules (excluding _locales - handled separately)
 console.log('📦 Copying shared modules...');
 const sharedDest = path.join(distDir, 'shared');
-copyDirectory(sharedSrc, sharedDest);
+copyDirectory(sharedSrc, sharedDest, { exclude: ['_locales'] });
 console.log('✓ Shared modules copied\n');
+
+// Copy locales (Chrome uses shared locales as-is)
+console.log('📦 Copying locales...');
+const localesSrc = path.join(sharedSrc, '_locales');
+const localesDest = path.join(distDir, '_locales');
+copyDirectory(localesSrc, localesDest);
+console.log('✓ Locales copied\n');
 
 // Write build timestamp
 const buildTimestamp = new Date().toISOString();

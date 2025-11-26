@@ -39,11 +39,20 @@ copyDirectory(firefoxSrc, distDir, {
 });
 console.log('✓ Firefox files copied\n');
 
-// Copy shared modules
+// Copy shared modules (excluding _locales - handled separately)
 console.log('📦 Copying shared modules...');
 const sharedDest = path.join(distDir, 'shared');
-copyDirectory(sharedSrc, sharedDest);
+copyDirectory(sharedSrc, sharedDest, { exclude: ['_locales'] });
 console.log('✓ Shared modules copied\n');
+
+// Copy locales with Firefox branding
+console.log('📦 Copying locales...');
+copyLocalesWithBrowserName(
+  path.join(sharedSrc, '_locales'),
+  path.join(distDir, '_locales'),
+  'Firefox'
+);
+console.log('✓ Locales copied\n');
 
 // Write build timestamp
 const buildTimestamp = new Date().toISOString();
@@ -92,6 +101,38 @@ function copyDirectory(src, dest, options = {}) {
       }
       // Copy file
       fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
+
+/**
+ * Copy _locales directory and replace "Chrome" with browser name in messages.json files
+ */
+function copyLocalesWithBrowserName(src, dest, browserName) {
+  if (!fs.existsSync(src)) {
+    console.log(`  Warning: ${src} does not exist, skipping locales`);
+    return;
+  }
+
+  // Get all locale directories (en, es, fr, etc.)
+  const locales = fs.readdirSync(src, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name);
+
+  for (const locale of locales) {
+    const localeSrc = path.join(src, locale);
+    const localeDest = path.join(dest, locale);
+    fs.mkdirSync(localeDest, { recursive: true });
+
+    // Copy and transform messages.json
+    const messagesSrc = path.join(localeSrc, 'messages.json');
+    const messagesDest = path.join(localeDest, 'messages.json');
+
+    if (fs.existsSync(messagesSrc)) {
+      let content = fs.readFileSync(messagesSrc, 'utf8');
+      // Replace "Chrome" with browser name (case-sensitive for proper branding)
+      content = content.replace(/Chrome/g, browserName);
+      fs.writeFileSync(messagesDest, content);
     }
   }
 }
