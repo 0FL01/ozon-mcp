@@ -551,8 +551,21 @@ async function handleCDPCommand(cdpMethod, cdpParams) {
     case 'Input.dispatchMouseEvent':
       return await handleMouseEvent(cdpParams);
 
-    case 'Input.dispatchKeyEvent':
-      return await handleKeyEvent(cdpParams);
+    case 'Input.dispatchKeyEvent': {
+      // Use Chrome debugger for real trusted key events (enables form submission, etc.)
+      await ensureDebuggerAttached();
+      try {
+        await chrome.debugger.sendCommand(
+          { tabId: attachedTabId },
+          'Input.dispatchKeyEvent',
+          cdpParams
+        );
+        return { success: true };
+      } catch (error) {
+        logger.log(`[Background] Input.dispatchKeyEvent error: ${error.message}`);
+        return { success: false, error: error.message };
+      }
+    }
 
     case 'DOM.querySelector': {
       // Use real Chrome debugger DOM APIs for true nodeIds
@@ -1606,59 +1619,6 @@ async function handleMouseEvent(params) {
   }
 
   return clickResult;
-}
-
-// Key event handler
-async function handleKeyEvent(params) {
-  const attachedTabId = tabHandlers.getAttachedTabId();
-  const { type, key, code: keyCode, text } = params;
-
-  // For 'char' type events, use text parameter as the key
-  // This is sent by browser_interact type action
-  const actualKey = type === 'char' && text ? text : key;
-
-  // Map CDP event types to DOM event types
-  const eventTypeMap = {
-    keyDown: 'keydown',
-    keyUp: 'keyup',
-    char: 'keypress'
-  };
-
-  const domEventType = eventTypeMap[type] || type;
-
-  // IMPORTANT: Must use MAIN world for key events to access the actual focused element
-  // ISOLATED world has its own DOM where activeElement is always body
-  // All args must be JSON-serializable (no undefined values)
-  /* eslint-disable no-undef */
-  const results = await chrome.scripting.executeScript({
-    target: { tabId: attachedTabId },
-    world: 'MAIN',  // Run in main world to access real document.activeElement
-    func: (domEventType, actualKey, keyCode, text) => {
-      const activeElement = document.activeElement || document.body;
-
-      const event = new KeyboardEvent(domEventType, {
-        key: actualKey || '',
-        code: keyCode || '',
-        bubbles: true,
-        cancelable: true
-      });
-
-      activeElement.dispatchEvent(event);
-
-      // For text input, also update the value directly
-      // Just dispatching KeyboardEvent doesn't insert text in modern browsers
-      if (text && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-        activeElement.value += text;
-        activeElement.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-
-      return { success: true };
-    },
-    args: [domEventType, actualKey || '', keyCode || '', text || '']
-  });
-  /* eslint-enable no-undef */
-
-  return results[0]?.result || { success: false };
 }
 
 // Register command handlers with WebSocket connection
