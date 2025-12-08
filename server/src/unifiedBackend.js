@@ -1390,7 +1390,7 @@ class UnifiedBackend {
         const elements = document.querySelectorAll(baseSelector);
         for (const el of elements) {
           const text = el.textContent || el.innerText || '';
-          if (text.includes(searchText)) {
+          if (text.toLowerCase().includes(searchText.toLowerCase())) {
             // If there's a remainder selector, find the descendant element
             if (remainderSelector) {
               const target = el.querySelector(remainderSelector);
