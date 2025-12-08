@@ -1,6 +1,6 @@
 {
   "name": "blueprint-mcp-monorepo",
-  "version": "1.9.16",
+  "version": "1.9.17",
   "private": true,
   "description": "Blueprint MCP monorepo - MCP server and browser extensions",
   "repository": {

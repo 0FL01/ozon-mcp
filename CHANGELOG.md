@@ -1,3 +1,10 @@
+# v1.9.17 (2025-12-08)
+
+## Changes
+
+- Rename Firefox extension to avoid trademark linter issue
+
+
 # v1.9.16 (2025-12-08)
 
 ## Changes
