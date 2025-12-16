@@ -1,3 +1,10 @@
+# v1.9.19 (2025-12-17)
+
+## Changes
+
+- Fix browser_evaluate to show JavaScript errors instead of undefined (#35)
+
+
 # v1.9.18 (2025-12-08)
 
 ## Changes
