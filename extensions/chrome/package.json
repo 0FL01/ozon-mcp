@@ -1,6 +1,6 @@
 {
   "name": "@blueprint/mcp-extension",
-  "version": "1.9.20",
+  "version": "1.9.21",
   "description": "Blueprint MCP for Chrome",
   "private": true,
   "repository": {

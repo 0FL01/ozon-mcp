@@ -1,3 +1,10 @@
+# v1.9.21 (2025-12-21)
+
+## Changes
+
+- Improve client libraries with auto-connect and documentation (#38)
+
+
 # v1.9.20 (2025-12-21)
 
 ## Changes
