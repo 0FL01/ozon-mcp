@@ -1,7 +1,7 @@
 /**
- * Wrapper Generator
+ * Client Library Generator
  *
- * Generates language-specific wrappers for Blueprint MCP script mode.
+ * Generates language-specific client libraries for Blueprint MCP script mode.
  * Methods are dynamically generated from the tool list.
  */
 
@@ -9,22 +9,22 @@ const python = require('./python');
 const javascript = require('./javascript');
 const ruby = require('./ruby');
 
-const wrappers = {
+const clientLibraries = {
   python,
   javascript,
   ruby
 };
 
 /**
- * Generate a complete wrapper for the given language
+ * Generate a complete client library for the given language
  * @param {string} language - 'python', 'javascript', or 'ruby'
  * @param {Array} tools - Array of tool definitions from listTools()
- * @returns {string} Complete wrapper code
+ * @returns {string} Complete client library code
  */
 function generateWrapper(language, tools) {
-  const wrapper = wrappers[language];
-  if (!wrapper) {
-    throw new Error(`Unknown language: ${language}. Available: ${Object.keys(wrappers).join(', ')}`);
+  const clientLib = clientLibraries[language];
+  if (!clientLib) {
+    throw new Error(`Unknown language: ${language}. Available: ${Object.keys(clientLibraries).join(', ')}`);
   }
 
   // Filter to tools that should be exposed in scripts
@@ -33,19 +33,19 @@ function generateWrapper(language, tools) {
 
   // Generate method code for each tool
   const methods = scriptableTools
-    .map(tool => wrapper.generateMethod(tool.name))
+    .map(tool => clientLib.generateMethod(tool.name))
     .join('\n');
 
   // Replace placeholder in template
-  return wrapper.template.replace('{{METHODS}}', methods);
+  return clientLib.template.replace('{{METHODS}}', methods);
 }
 
 /**
- * Get list of available wrapper languages
+ * Get list of available client library languages
  * @returns {string[]}
  */
 function getAvailableLanguages() {
-  return Object.keys(wrappers);
+  return Object.keys(clientLibraries);
 }
 
 /**
@@ -78,22 +78,32 @@ function getInstructions(tools) {
 Automate browser tasks with external scripts. Use when page structure and selectors are known.
 
 ### How It Works
-1. Install a wrapper file for your language
-2. Import the wrapper in your script
+1. Install a client library for your language
+2. Import the library in your script
 3. Call methods that match tool names exactly
 
-### Available Wrappers
-- **python** - Python 3 wrapper
-- **javascript** - Node.js ES module wrapper
-- **ruby** - Ruby wrapper
+### Available Client Libraries
+- **python** - Python 3 client library
+- **javascript** - Node.js ES module client library
+- **ruby** - Ruby client library
 
-### Install a Wrapper
+### Install a Client Library
 \`\`\`
 scripting action='install_wrapper' language='python' path='./blueprint_mcp.py'
 \`\`\`
 
 ### Available Methods
 All tool names become methods: ${toolNames}
+
+### PRO Mode: Auto-Connect
+When using PRO mode with multiple browsers, you can auto-connect:
+\`\`\`python
+# Auto-connect to first available browser
+bp.enable(client_id='my-script', auto_connect=True)
+
+# Auto-connect to specific browser by name
+bp.enable(client_id='my-script', auto_connect='Chrome')
+\`\`\`
 
 ### Usage Example (Python)
 \`\`\`python

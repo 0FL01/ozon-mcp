@@ -379,6 +379,27 @@ class StatefulBackend {
 
     // Forward to active backend
     if (!this._activeBackend) {
+      // Check if we're in authenticated_waiting state (PRO mode with multiple browsers)
+      if (this._state === 'authenticated_waiting' && this._availableBrowsers) {
+        const browserList = this._availableBrowsers.map(b => `  - ${b.name || 'Browser'} (${b.id})`).join('\n');
+        if (options.rawResult) {
+          return {
+            success: false,
+            error: 'browser_not_selected',
+            message: 'Browser not selected. In PRO mode with multiple browsers, call browser_connect() after enable().',
+            available_browsers: this._availableBrowsers.map(b => ({ id: b.id, name: b.name || 'Browser' })),
+            hint: 'Or use: enable(client_id=..., auto_connect=true)'
+          };
+        }
+        return {
+          content: [{
+            type: 'text',
+            text: `### ⚠️ Browser Not Selected\n\n**Current State:** Authenticated, waiting for browser selection\n\nIn PRO mode with multiple browsers, you need to call \`browser_connect()\` after \`enable()\`.\n\n**Available browsers:**\n${browserList}\n\n**Example:**\n\`\`\`\nbrowser_connect browser_id='${this._availableBrowsers[0]?.id || 'ext-chrome-xxx'}'\n\`\`\`\n\n**Or use auto-connect:**\n\`\`\`\nenable client_id='my-script' auto_connect=true\n\`\`\``
+          }],
+          isError: true
+        };
+      }
+
       if (options.rawResult) {
         return {
           success: false,

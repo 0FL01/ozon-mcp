@@ -3625,17 +3625,38 @@ class UnifiedBackend {
       };
     }
 
-    const value = result.result?.value;
+    // Extract value from CDP result
+    // CDP returns { result: { type: 'object', value: {...} } } for objects with returnByValue: true
+    // For undefined/null, it may not include value property
+    let value = result.result?.value;
 
-    // For rawResult mode, return the value directly
-    if (options.rawResult) {
-      return { success: true, value };
+    // Ensure objects are deeply cloned to avoid any serialization issues
+    if (value !== undefined && value !== null && typeof value === 'object') {
+      try {
+        // Deep clone to ensure clean serialization
+        value = JSON.parse(JSON.stringify(value));
+      } catch (e) {
+        // If serialization fails (circular refs, etc.), return as string
+        value = String(value);
+      }
     }
+
+    // For rawResult mode, always include value key (even if null/undefined)
+    if (options.rawResult) {
+      return {
+        success: true,
+        value: value !== undefined ? value : null,
+        type: result.result?.type || 'undefined'
+      };
+    }
+
+    // Format the value for display
+    const displayValue = value === undefined ? 'undefined' : JSON.stringify(value, null, 2);
 
     return {
       content: [{
         type: 'text',
-        text: `### Result\n${JSON.stringify(value, null, 2)}`
+        text: `### Result\n${displayValue}`
       }],
       isError: false
     };
