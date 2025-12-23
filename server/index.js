@@ -52,13 +52,32 @@ async function main() {
     // 2. Create direct transport (no proxy mode)
     const transport = new DirectTransport(extensionServer);
 
+    // 2.1 Load selectors configuration
+    const fs = require('fs');
+    const path = require('path');
+    let ozonSelectors = {};
+
+    try {
+        const selectorsPath = path.resolve(__dirname, '../selectors/ozon-selectors.json');
+        if (fs.existsSync(selectorsPath)) {
+            const fileContent = fs.readFileSync(selectorsPath, 'utf8');
+            ozonSelectors = JSON.parse(fileContent);
+            debugLog('Loaded Ozon selectors configuration');
+        } else {
+            console.warn('[ozon-mcp] Warning: ozon-selectors.json not found at', selectorsPath);
+        }
+    } catch (error) {
+        console.error('[ozon-mcp] Error loading selectors:', error.message);
+    }
+
     // 3. Initialize backend with CDP command implementations
     const config = {
         debug: DEBUG_MODE,
         server: {
             name: 'ozon-mcp',
             version: packageJSON.version
-        }
+        },
+        ozonSelectors: ozonSelectors
     };
     const backend = new UnifiedBackend(config, transport);
 

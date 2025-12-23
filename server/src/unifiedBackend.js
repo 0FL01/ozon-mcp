@@ -5,6 +5,8 @@
  * Uses Transport abstraction to send commands to extension.
  */
 
+const OzonHandler = require('./ozonHandler');
+
 function debugLog(...args) {
   if (global.DEBUG_MODE) {
     console.error('[UnifiedBackend]', ...args);
@@ -16,6 +18,7 @@ class UnifiedBackend {
     this._config = config;
     this._transport = transport;
     this._lastForcedNodeIds = new Map(); // Cache nodeIds by selector
+    this.ozonSelectors = config.ozonSelectors || {};
   }
 
   async initialize(server, clientInfo, statefulBackend) {
@@ -23,7 +26,16 @@ class UnifiedBackend {
     this._clientInfo = clientInfo;
     // Store reference to StatefulBackend for updating attached tab info and status headers
     this._statefulBackend = statefulBackend;
-    debugLog('Initialized');
+
+    // Initialize Ozon handler
+    this.ozonHandler = new OzonHandler(this._transport, this.ozonSelectors);
+
+    if (this._config.debug && this.ozonSelectors) {
+      const keyCount = Object.keys(this.ozonSelectors).length;
+      debugLog(`Initialized. Ozon selectors loaded: ${keyCount} top-level keys`);
+    } else {
+      debugLog('Initialized');
+    }
   }
 
   /**
@@ -118,7 +130,7 @@ class UnifiedBackend {
    */
   async listTools() {
     // Return MCP-formatted tool schemas
-    return [
+    const baseTools = [
       // Tab management
       {
         name: 'browser_tabs',
@@ -558,6 +570,13 @@ class UnifiedBackend {
         }
       }
     ];
+
+    // Add Ozon-specific tools if handler is initialized
+    if (this.ozonHandler) {
+      return [...baseTools, ...this.ozonHandler.getTools()];
+    }
+
+    return baseTools;
   }
 
   /**
@@ -619,6 +638,12 @@ class UnifiedBackend {
       }
 
       let result;
+
+      // Delegate Ozon tools to handler
+      if (name.startsWith('ozon_') && this.ozonHandler) {
+        result = await this.ozonHandler.handleTool(name, args);
+        return this._addStatusHeader(result);
+      }
 
       // Route to appropriate handler (pass options for rawResult support)
       switch (name) {
@@ -738,12 +763,12 @@ class UnifiedBackend {
           content: [{
             type: 'text',
             text: `### Browser Disconnected\n\n` +
-                  `The browser extension disconnected from the relay (likely due to extension reload).\n\n` +
-                  `**To reconnect:**\n` +
-                  `1. Call \`disable\` to close the current connection\n` +
-                  `2. Call \`enable client_id='...'\` to reconnect\n` +
-                  `3. The extension will auto-reconnect after a few seconds\n\n` +
-                  `**Or** just wait - auto-reconnection is attempting in the background.`
+              `The browser extension disconnected from the relay (likely due to extension reload).\n\n` +
+              `**To reconnect:**\n` +
+              `1. Call \`disable\` to close the current connection\n` +
+              `2. Call \`enable client_id='...'\` to reconnect\n` +
+              `3. The extension will auto-reconnect after a few seconds\n\n` +
+              `**Or** just wait - auto-reconnection is attempting in the background.`
           }],
           isError: true
         };
@@ -758,11 +783,11 @@ class UnifiedBackend {
           content: [{
             type: 'text',
             text: `### Connection Error\n\n` +
-                  `${errorMsg}\n\n` +
-                  `**To fix:**\n` +
-                  `1. Call \`disable\` to close the current connection\n` +
-                  `2. Call \`enable client_id='...'\` to reconnect\n` +
-                  `3. Make sure the browser extension is running`
+              `${errorMsg}\n\n` +
+              `**To fix:**\n` +
+              `1. Call \`disable\` to close the current connection\n` +
+              `2. Call \`enable client_id='...'\` to reconnect\n` +
+              `3. Make sure the browser extension is running`
           }],
           isError: true
         };
@@ -1636,7 +1661,7 @@ class UnifiedBackend {
 
               // If it's a :has-text() with a tag selector, search for alternatives
               if (typeof processedSelector === 'object' && processedSelector.type === 'has-text' &&
-                  processedSelector.baseSelector !== '*') {
+                processedSelector.baseSelector !== '*') {
                 const result = await this._findAlternativeSelectors(processedSelector, action.selector);
                 const alternatives = result.alternatives;
                 const totalCount = result.totalCount;
@@ -1956,7 +1981,7 @@ class UnifiedBackend {
 
               // If it's a :has-text() with a tag selector, search for alternatives
               if (typeof processedSelector === 'object' && processedSelector.type === 'has-text' &&
-                  processedSelector.baseSelector !== '*') {
+                processedSelector.baseSelector !== '*') {
                 const result = await this._findAlternativeSelectors(processedSelector, action.selector);
                 const alternatives = result.alternatives;
                 const totalCount = result.totalCount;
@@ -3609,8 +3634,8 @@ class UnifiedBackend {
     // Check for JavaScript errors (syntax errors, runtime errors, etc.)
     if (result.exceptionDetails) {
       const errorDesc = result.exceptionDetails.exception?.description ||
-                        result.exceptionDetails.text ||
-                        'JavaScript evaluation failed';
+        result.exceptionDetails.text ||
+        'JavaScript evaluation failed';
 
       if (options.rawResult) {
         return { success: false, error: 'js_error', message: errorDesc };
@@ -4472,36 +4497,36 @@ class UnifiedBackend {
           try {
             const bodyResult = await this._transport.sendCommand('getResponseBody', { requestId: req.requestId });
             if (bodyResult.body && !bodyResult.error) {
-            let body = bodyResult.body;
-            // Decode base64 if needed
-            if (bodyResult.base64Encoded) {
-              body = Buffer.from(body, 'base64').toString('utf-8');
-            }
-
-            // Try to parse as JSON for better formatting
-            try {
-              let parsed = JSON.parse(body);
-
-              // Apply JSONPath filter if provided
-              if (jsonPath) {
-                const { JSONPath } = require('jsonpath-plus');
-                const filtered = JSONPath({ path: jsonPath, json: parsed });
-                parsed = filtered;
-                details += `\n\n**Response Body** (filtered with \`${jsonPath}\`):\n\`\`\`json\n${JSON.stringify(parsed, null, 2).substring(0, 5000)}${JSON.stringify(parsed, null, 2).length > 5000 ? '\n...(truncated)' : ''}\n\`\`\``;
-              } else {
-                details += `\n\n**Response Body:**\n\`\`\`json\n${JSON.stringify(parsed, null, 2).substring(0, 5000)}${JSON.stringify(parsed, null, 2).length > 5000 ? '\n...(truncated)' : ''}\n\`\`\``;
+              let body = bodyResult.body;
+              // Decode base64 if needed
+              if (bodyResult.base64Encoded) {
+                body = Buffer.from(body, 'base64').toString('utf-8');
               }
 
-              if (JSON.stringify(parsed, null, 2).length > 5000) {
-                details += `\n\n_Tip: Use \`jsonPath\` parameter to filter large responses (e.g., \`$.data.items[0]\`)_`;
+              // Try to parse as JSON for better formatting
+              try {
+                let parsed = JSON.parse(body);
+
+                // Apply JSONPath filter if provided
+                if (jsonPath) {
+                  const { JSONPath } = require('jsonpath-plus');
+                  const filtered = JSONPath({ path: jsonPath, json: parsed });
+                  parsed = filtered;
+                  details += `\n\n**Response Body** (filtered with \`${jsonPath}\`):\n\`\`\`json\n${JSON.stringify(parsed, null, 2).substring(0, 5000)}${JSON.stringify(parsed, null, 2).length > 5000 ? '\n...(truncated)' : ''}\n\`\`\``;
+                } else {
+                  details += `\n\n**Response Body:**\n\`\`\`json\n${JSON.stringify(parsed, null, 2).substring(0, 5000)}${JSON.stringify(parsed, null, 2).length > 5000 ? '\n...(truncated)' : ''}\n\`\`\``;
+                }
+
+                if (JSON.stringify(parsed, null, 2).length > 5000) {
+                  details += `\n\n_Tip: Use \`jsonPath\` parameter to filter large responses (e.g., \`$.data.items[0]\`)_`;
+                }
+              } catch (jsonError) {
+                // Not JSON or parse error, show as text (truncated)
+                details += `\n\n**Response Body:**\n\`\`\`\n${body.substring(0, 1000)}${body.length > 1000 ? '\n...(truncated)' : ''}\n\`\`\``;
               }
-            } catch (jsonError) {
-              // Not JSON or parse error, show as text (truncated)
-              details += `\n\n**Response Body:**\n\`\`\`\n${body.substring(0, 1000)}${body.length > 1000 ? '\n...(truncated)' : ''}\n\`\`\``;
+            } else if (bodyResult.error) {
+              details += `\n\n_Response body unavailable: ${bodyResult.error}_`;
             }
-          } else if (bodyResult.error) {
-            details += `\n\n_Response body unavailable: ${bodyResult.error}_`;
-          }
           } catch (error) {
             details += `\n\n_Could not fetch response body: ${error.message}_`;
             debugLog(`Could not fetch response body for ${req.requestId}:`, error);
@@ -5462,8 +5487,8 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
       // Extract external CSS files (not inline, not Google Fonts CDN)
       const externalCSSFiles = stylesheets
         .filter(sheet => sheet.href &&
-                !sheet.href.includes('fonts.googleapis.com') &&
-                !sheet.href.startsWith('chrome-extension://'))
+          !sheet.href.includes('fonts.googleapis.com') &&
+          !sheet.href.startsWith('chrome-extension://'))
         .map(sheet => sheet.href);
 
       // Helper function to extract and format filename from URL
@@ -5717,8 +5742,8 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
             if (!decl.computed && nextDifferentRuleIndex < values.length) {
               const nextDecl = values[nextDifferentRuleIndex];
               if (nextDecl.computed &&
-                  nextDecl.source === decl.source &&
-                  nextDecl.selector === decl.selector) {
+                nextDecl.source === decl.source &&
+                nextDecl.selector === decl.selector) {
                 nextDifferentRuleIndex++;
               }
             }
