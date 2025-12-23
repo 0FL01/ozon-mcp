@@ -28,7 +28,7 @@ class UnifiedBackend {
     this._statefulBackend = statefulBackend;
 
     // Initialize Ozon handler
-    this.ozonHandler = new OzonHandler(this._transport, this.ozonSelectors);
+    this.ozonHandler = new OzonHandler(this, this.ozonSelectors);
 
     if (this._config.debug && this.ozonSelectors) {
       const keyCount = Object.keys(this.ozonSelectors).length;

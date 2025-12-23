@@ -13,7 +13,7 @@
         "results": {
             "grid": "[data-widget='tileGridDesktop']",
             "gridSimple": "[data-widget='skuGridSimple']",
-            "_gridSimpleNote": "Используется только на главной странице, отсутствует на странице поиска",
+            "_gridSimpleNote": "Используется на некоторых страницах выдачи",
             "paginator": "[data-widget='infiniteVirtualPaginator']"
         },
         "filters": {
@@ -22,8 +22,8 @@
             "sort": "[data-widget='searchResultsSort']"
         },
         "productCard": {
-            "link": "[data-widget='tileGridDesktop'] a[href*='/product/']",
-            "tile": "[data-widget='tileGridDesktop'] [data-index]"
+            "link": "a.tile-clickable-element",
+            "tile": "div.tile-root"
         }
     },
     "product": {
