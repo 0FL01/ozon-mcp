@@ -151,6 +151,12 @@ DEBUG=true node server/index.js
 - `browser_window` — управление окном браузера
 - `browser_pdf_save` — сохранить страницу как PDF
 
+### Ozon-специфичные
+- `ozon_search_and_parse` — поиск товаров на Ozon и парсинг результатов
+- `ozon_parse_product_page` — извлечение данных со страницы товара
+- `ozon_cart_action` — работа с корзиной (add/increment/decrement)
+- `ozon_get_share_link` — получить чистую ссылку на товар (без UTM)
+
 ---
 
 ## Переменные окружения
@@ -190,6 +196,7 @@ server/
     ├── extensionServer.js # WebSocket сервер
     ├── transport.js       # Транспорт (DirectTransport)
     ├── unifiedBackend.js  # Реализация MCP-инструментов
+    ├── ozonHandler.js     # Ozon-специфичная бизнес-логика
     └── fileLogger.js      # Логирование
 
 extensions/chrome/
@@ -197,6 +204,10 @@ extensions/chrome/
 └── src/
     ├── background-module.js  # Service worker (CDP команды)
     └── content-script.js     # Инъекция в страницу
+
+selectors/
+├── ozon-selectors.json   # CSS-селекторы для Ozon
+└── README.md             # Документация по селекторам
 ```
 
 ---
