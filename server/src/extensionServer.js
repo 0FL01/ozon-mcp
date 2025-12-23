@@ -156,6 +156,17 @@ class ExtensionServer {
         debugLog(`Server listening on ${this._host}:${this._port}`);
         resolve();
       });
+
+      this._httpServer.on('error', (error) => {
+        if (error.code === 'EADDRINUSE') {
+          console.error(`[ExtensionServer] ❌ ERROR: Port ${this._port} is already in use!`);
+          console.error(`[ExtensionServer] Please stop other running instances or zombie processes:`);
+          console.error(`[ExtensionServer] Run: lsof -ti:${this._port} | xargs kill -9`);
+        } else {
+          debugLog('HTTP Server error:', error);
+        }
+        reject(error);
+      });
     });
   }
 

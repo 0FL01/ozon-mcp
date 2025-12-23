@@ -22,7 +22,8 @@ export class WebSocketConnection {
     this.projectName = null;
     this.connectionUrl = null;
     this.reconnectTimeout = null;
-    this.reconnectDelay = 5000; // 5 seconds
+    this.reconnectDelay = 500; // Start with 500ms
+    this.maxReconnectDelay = 5000; // Cap at 5 seconds
     this.tokenRefreshTimer = null; // Periodic token refresh check
 
     // Command handler map - will be set by the consumer
@@ -291,6 +292,7 @@ export class WebSocketConnection {
   _handleOpen() {
     this.logger.logAlways(`Connected to ${this.connectionUrl}`);
     this.isConnected = true;
+    this.reconnectDelay = 500; // Reset reconnect delay on successful connection
 
     // Update icon manager
     if (this.iconManager) {
@@ -407,10 +409,10 @@ export class WebSocketConnection {
       if (params.active_connections && params.active_connections.length > 0) {
         const firstConnection = params.active_connections[0];
         let extractedProjectName = firstConnection.project_name ||
-                                   firstConnection.mcp_client_id ||
-                                   firstConnection.client_id ||
-                                   firstConnection.clientID ||
-                                   firstConnection.name;
+          firstConnection.mcp_client_id ||
+          firstConnection.client_id ||
+          firstConnection.clientID ||
+          firstConnection.name;
 
         // Strip "mcp-" prefix if present
         if (extractedProjectName && extractedProjectName.startsWith('mcp-')) {
@@ -422,7 +424,7 @@ export class WebSocketConnection {
           this.projectName = extractedProjectName;
 
           // Broadcast status change to popup
-          this.browser.runtime.sendMessage({ type: 'statusChanged' }).catch(() => {});
+          this.browser.runtime.sendMessage({ type: 'statusChanged' }).catch(() => { });
         }
       }
     }
@@ -541,6 +543,13 @@ export class WebSocketConnection {
     if (this.iconManager) {
       this.iconManager.setConnected(false);
     }
+
+    // Attempt to parse validation errors if present (usually 1008 Policy Violation)
+    try {
+      if (error && error.message) {
+        this.logger.logAlways(`[WebSocket] Detail: ${error.message}`);
+      }
+    } catch (e) { }
   }
 
   /**
@@ -579,6 +588,10 @@ export class WebSocketConnection {
     this.logger.log(`[WebSocket] Reconnecting in ${this.reconnectDelay}ms...`);
     this.reconnectTimeout = setTimeout(() => {
       this.reconnectTimeout = null;
+
+      // Exponential backoff
+      this.reconnectDelay = Math.min(this.reconnectDelay * 1.5, this.maxReconnectDelay);
+
       this.connect();
     }, this.reconnectDelay);
   }
