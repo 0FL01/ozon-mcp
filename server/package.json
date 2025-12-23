@@ -23,6 +23,14 @@
   "bin": {
     "ozon-mcp": "index.js"
   },
+  "pkg": {
+    "assets": [
+      "../selectors/**/*"
+    ],
+    "targets": [
+      "node18-linux-x64"
+    ]
+  },
   "files": [
     "index.js",
     "src/",
@@ -30,6 +38,7 @@
   ],
   "devDependencies": {
     "@types/node": "^24.3.0",
-    "jest": "^30.2.0"
+    "jest": "^30.2.0",
+    "pkg": "^5.8.1"
   }
 }

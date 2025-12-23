@@ -3,6 +3,7 @@
   "name": "Ozon MCP",
   "version": "1.0.0",
   "description": "MCP browser extension for Ozon marketplace automation",
+  "default_locale": "en",
   "permissions": [
     "alarms",
     "debugger",

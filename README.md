@@ -28,10 +28,14 @@ npm install
 
 ### 2. Загрузить расширение в Chrome
 
-1. Открыть `chrome://extensions`
-2. Включить "Режим разработчика" (Developer mode)
-3. Нажать "Загрузить распакованное" (Load unpacked)
-4. Выбрать папку `extensions/chrome`
+Папка `extensions/chrome` — это и есть готовое расширение (в распакованном виде). Ничего архивировать или собирать не нужно.
+
+1. Откройте в браузере страницу управления расширениями: `chrome://extensions`
+2. Включите **"Режим разработчика"** (Developer mode) в правом верхнем углу.
+3. Нажмите кнопку **"Загрузить распакованное"** (Load unpacked).
+4. В диалоговом окне выберите папку:
+   `.../ozon-mcp/extensions/chrome`
+   *(Эта папка содержит файл `manifest.json`)*
 
 ### 3. Запуск
 
@@ -41,6 +45,47 @@ node server/index.js
 
 # Дебаг режим (рекомендуется для разработки)
 DEBUG=true node server/index.js
+```
+
+### 4. Production (Standalone Binary)
+
+Для использования в продакшене без установки Node.js и зависимостей, можно собрать самодостаточный бинарный файл.
+
+#### Сборка бинарника
+```bash
+./scripts/build_prod.sh
+```
+Бинарный файл будет создан по пути: `dist/ozon-mcp`
+
+#### Запуск бинарника
+Бинарник не требует `node_modules` и по умолчанию использует порт `5555`.
+
+```bash
+# Простой запуск
+./dist/ozon-mcp
+
+# С дебаг логами
+DEBUG=true ./dist/ozon-mcp
+
+# На другом порту
+MCP_PORT=8080 ./dist/ozon-mcp
+```
+
+#### Пример конфига (claude_desktop_config.json)
+Для бинарника аргументы не нужны (если не меняете порт).
+
+```json
+{
+  "mcpServers": {
+    "ozon-mcp": {
+      "command": "/absolute/path/to/ozon-mcp/dist/ozon-mcp",
+      "args": [],
+      "env": {
+        "MCP_PORT": "5555"
+      }
+    }
+  }
+}
 ```
 
 ---
