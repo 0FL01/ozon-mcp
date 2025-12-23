@@ -16,7 +16,7 @@ Download the latest Chrome extension from GitHub:
 - **Download link**: https://github.com/railsblueprint/blueprint-mcp/releases
 
 Or install from Chrome Web Store:
-- **Chrome Web Store**: https://chromewebstore.google.com/detail/browser-mcp/bjfgambnhccakkhmkepdoekmckoijdlc
+- **Chrome Web Store**: https://chromewebstore.google.com/detail/blueprint-mcp-for-chrome/kpfkpbkijebomacngfgljaendniocdfp
 
 ### Load Chrome Extension (for development)
 
