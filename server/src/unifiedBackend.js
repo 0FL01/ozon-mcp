@@ -5046,17 +5046,15 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
         method: 'Runtime.evaluate',
         params: {
           expression: `
-            (() => {
+            (function() {
               const mode = ${JSON.stringify(mode)};
               const customSelector = ${JSON.stringify(selector)};
               // Detect Ozon to apply specific noise filtering
               const isOzon = window.location.hostname.includes('ozon');
               
               const OZON_NOISE_SELECTORS = [
-                // Recommendations (major noise source ~16%)
+                // Recommendations (only on product/search pages, not homepage)
                 '[data-widget="paginator"]',
-                '[data-widget="skuGrid"]',
-                '[data-widget="skuLine"]',
                 '[data-widget="webSimilarGoods"]',
                 '[data-widget="webRecomGoods"]',
                 
@@ -5067,16 +5065,46 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
                 'footer',
                 '.footer',
                 '[data-widget="breadCrumbs"]',
+                '[data-widget="horizontalMenu"]',
+                '[data-widget="bigPromoCounterNavbar"]',
+                
+                // Filters (search page only)
+                '[data-widget="filtersDesktop"]',
+                '[data-widget="searchResultsSort"]',
                 
                 // Tags and Hashtags
                 '[data-widget="tagList"]',
                 '[data-widget="webHashtags"]',
+                '[data-widget="tapTags"]',
                 
                 // Sticky elements and Ads
                 '[data-widget="webStickyProducts"]',
                 '.adv-banner',
-                '[data-widget="webAd"]'
+                '[data-widget="webAd"]',
+                '[data-widget="advBanner"]',
+                
+                // Other noise
+                '[data-widget="addressBookBarWeb"]',
+                '[data-widget="catalogMenu"]',
+                '[data-widget="favoriteCounter"]',
+                '[data-widget="orderInfo"]',
+                '[data-widget="profileMenuAnonymous"]',
+                '[data-widget="selectedCurrencyLanguage"]',
+                '[data-widget="searchBarDesktop"]'
               ].join(',');
+              
+              // Helper to check if element or any parent is in noise list
+              function isNoiseElement(el) {
+                if (!el || !el.matches) return false;
+                let current = el;
+                while (current && current !== document.body) {
+                  if (current.matches && current.matches(OZON_NOISE_SELECTORS)) {
+                    return true;
+                  }
+                  current = current.parentElement;
+                }
+                return false;
+              }
 
               // HTML to Markdown converter
               function htmlToMarkdown(element, baseUrl) {
@@ -5094,8 +5122,8 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
 
                   if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-                  // Ozon specific noise filtering
-                  if (isOzon && node.matches && node.matches(OZON_NOISE_SELECTORS)) {
+                  // Ozon specific noise filtering - check element AND all parents
+                  if (isOzon && isNoiseElement(node)) {
                     // console.log('Skipping noise:', node.getAttribute('data-widget') || node.tagName);
                     noiseRemoved++;
                     return;
@@ -5128,7 +5156,7 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
 
                     case 'p':
                       markdown += '\\n\\n';
-                      Array.from(node.childNodes).forEach(child => processNode(child, indent));
+                      Array.from(node.childNodes).forEach(function(child) { processNode(child, indent); });
                       markdown += '\\n\\n';
                       break;
 
@@ -5186,10 +5214,10 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
 
                     case 'ul':
                       markdown += '\\n';
-                      Array.from(node.children).forEach(li => {
+                      Array.from(node.children).forEach(function(li) {
                         if (li.tagName.toLowerCase() === 'li') {
                           markdown += indent + '- ';
-                          Array.from(li.childNodes).forEach(child => processNode(child, indent + '  '));
+                          Array.from(li.childNodes).forEach(function(child) { processNode(child, indent + '  '); });
                           markdown += '\\n';
                         }
                       });
@@ -5198,10 +5226,10 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
 
                     case 'ol':
                       markdown += '\\n';
-                      Array.from(node.children).forEach((li, idx) => {
+                      Array.from(node.children).forEach(function(li, idx) {
                         if (li.tagName.toLowerCase() === 'li') {
                           markdown += indent + (idx + 1) + '. ';
-                          Array.from(li.childNodes).forEach(child => processNode(child, indent + '   '));
+                          Array.from(li.childNodes).forEach(function(child) { processNode(child, indent + '   '); });
                           markdown += '\\n';
                         }
                       });
@@ -5210,7 +5238,7 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
 
                     case 'blockquote':
                       markdown += '\\n\\n> ';
-                      Array.from(node.childNodes).forEach(child => processNode(child, indent));
+                      Array.from(node.childNodes).forEach(function(child) { processNode(child, indent); });
                       markdown += '\\n\\n';
                       break;
 
@@ -5229,7 +5257,7 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
 
                     default:
                       // Process children for other elements
-                      Array.from(node.childNodes).forEach(child => processNode(child, indent));
+                      Array.from(node.childNodes).forEach(function(child) { processNode(child, indent); });
                       break;
                   }
                 }
@@ -5302,8 +5330,11 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
         }
       });
 
+      debugLog('Extract content CDP result:', JSON.stringify(result, null, 2));
       const data = result.result?.value;
+      debugLog('Extracted data:', JSON.stringify(data, null, 2));
       if (!data || !data.markdown) {
+        debugLog('Data validation failed:', { hasData: !!data, hasMarkdown: data?.markdown !== undefined });
         throw new Error('Failed to extract content');
       }
 
