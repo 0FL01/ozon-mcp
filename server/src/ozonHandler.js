@@ -39,6 +39,55 @@ class OzonHandler {
         }, { rawResult: true });
     }
 
+    /**
+     * Humanization utilities for anti-bot evasion
+     */
+
+    /**
+     * Random wait between min and max milliseconds
+     */
+    async _randomWait(min, max) {
+        const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+        await this._interact([{ type: 'wait', timeout: delay }]);
+    }
+
+    /**
+     * Type text with human-like delays between characters
+     * @param {string} selector - CSS selector for input field
+     * @param {string} text - Text to type
+     */
+    async _humanType(selector, text) {
+        // Click to focus
+        await this._interact([{ type: 'click', selector }]);
+        await this._randomWait(100, 300);
+
+        // Type each character with random delay
+        for (let i = 0; i < text.length; i++) {
+            await this._interact([{ type: 'type', selector, text: text[i] }]);
+            // Random delay between characters (50-150ms)
+            if (i < text.length - 1) {
+                await this._randomWait(50, 150);
+            }
+        }
+    }
+
+    /**
+     * Perform human-like scrolling on the page
+     */
+    async _humanScroll() {
+        // Random scroll down
+        const scrollDown = Math.floor(Math.random() * 500) + 300;
+        await this._interact([{ type: 'scroll_by', x: 0, y: scrollDown }]);
+        await this._randomWait(500, 1000);
+
+        // Sometimes scroll back up a bit
+        if (Math.random() > 0.5) {
+            const scrollUp = Math.floor(Math.random() * 200) + 100;
+            await this._interact([{ type: 'scroll_by', x: 0, y: -scrollUp }]);
+            await this._randomWait(300, 700);
+        }
+    }
+
     // --- Handlers ---
 
     /**
@@ -122,23 +171,29 @@ class OzonHandler {
 
         if (!s) throw new Error('Search selectors not configured');
 
-        // 1. Determine current state (are we on main page or already searching?)
-        // For simplicity, we just assume we can type in the search bar.
+        // Humanized search flow
+        // 1. Random delay before starting (simulate thinking)
+        await this._randomWait(500, 1500);
 
-        const interactions = [
-            // Clear and type query
-            { type: 'click', selector: s.input, clickCount: 3 }, // Select all
-            { type: 'type', selector: s.input, text: query },
-            { type: 'press_key', key: 'Enter' },
-            // Wait for results grid
-            { type: 'wait', timeout: 3000 } // Basic wait
-        ];
+        // 2. Click search input with human-like delay
+        await this._interact([{ type: 'click', selector: s.input, clickCount: 3 }]); // Select all
+        await this._randomWait(200, 500);
 
-        // We assume we might need to wait for either tileGridDesktop or skuGridSimple
-        // But since we can't easily do conditional wait in one go strictly via performInteractions schema 
-        // (unless enhanced), we'll do a basic wait and then check in evaluate.
+        // 3. Type query with human-like character delays
+        await this._humanType(s.input, query);
 
-        await this._interact(interactions);
+        // 4. Random delay before pressing Enter (simulate reading what was typed)
+        await this._randomWait(300, 800);
+
+        // 5. Press Enter
+        await this._interact([{ type: 'press_key', key: 'Enter' }]);
+
+        // 6. Wait for results with random delay (2-5 seconds)
+        await this._randomWait(2000, 5000);
+
+        // 7. Human-like scrolling to view results
+        await this._humanScroll();
+        await this._randomWait(500, 1000);
 
         // 3. Parse results via JS
         // Refined Parse Script using relative selectors where possible
@@ -191,6 +246,11 @@ class OzonHandler {
 
     async handleParseProductPage(args) {
         const s = this.selectors.product;
+
+        // Humanization: scroll page before parsing (simulate reading)
+        await this._randomWait(500, 1500);
+        await this._humanScroll();
+        await this._randomWait(800, 1500);
 
         const result = await this._evaluate(`
             () => {
@@ -372,10 +432,13 @@ class OzonHandler {
         }
 
         if (actions.length > 0) {
-            // Add wait and verification
-            actions.push({ type: 'wait', timeout: 1500 }); // Wait for network
+            // Humanization: random delay before clicking
+            await this._randomWait(300, 800);
 
             await this._interact(actions);
+
+            // Humanization: random wait for network response
+            await this._randomWait(1000, 2500);
 
             // Check header cart icon
             const cartCountState = await this._evaluate(`

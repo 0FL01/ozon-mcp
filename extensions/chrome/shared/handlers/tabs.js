@@ -27,6 +27,7 @@ export class TabHandlers {
     // Injection handlers (will be set by consumer)
     this.consoleInjector = null;
     this.dialogInjector = null;
+    this.stealthInjector = null;
   }
 
   /**
@@ -41,6 +42,13 @@ export class TabHandlers {
    */
   setDialogInjector(injector) {
     this.dialogInjector = injector;
+  }
+
+  /**
+   * Set stealth mode injector
+   */
+  setStealthInjector(injector) {
+    this.stealthInjector = injector;
   }
 
   /**
@@ -189,6 +197,11 @@ export class TabHandlers {
       await this.dialogInjector(tab.id);
     }
 
+    // Inject stealth script if stealth mode is enabled
+    if (stealth && this.stealthInjector) {
+      await this.stealthInjector(tab.id);
+    }
+
     return {
       tab: {
         id: tab.id,
@@ -275,6 +288,11 @@ export class TabHandlers {
     }
     if (this.dialogInjector) {
       await this.dialogInjector(selectedTab.id);
+    }
+
+    // Inject stealth script if stealth mode is enabled
+    if (stealth && this.stealthInjector) {
+      await this.stealthInjector(selectedTab.id);
     }
 
     return {

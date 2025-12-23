@@ -147,6 +147,34 @@ console.log('[Background] ✅ tabs.onUpdated listener registered at TOP LEVEL!')
   tabHandlers.setConsoleInjector((tabId) => consoleHandler.injectConsoleCapture(tabId));
   tabHandlers.setDialogInjector((tabId) => dialogHandler.setupDialogOverrides(tabId));
 
+  // Stealth mode injector
+  let stealthScriptSource = null;
+  tabHandlers.setStealthInjector(async (tabId) => {
+    try {
+      // Load stealth script once (cache it)
+      if (!stealthScriptSource) {
+        const stealthScriptUrl = chrome.runtime.getURL('src/stealth-inject.js');
+        const response = await fetch(stealthScriptUrl);
+        stealthScriptSource = await response.text();
+        logger.log('[Stealth] Loaded stealth script');
+      }
+
+      // Inject stealth script using CDP Page.addScriptToEvaluateOnNewDocument
+      // This ensures the script runs BEFORE any page scripts
+      await ensureDebuggerAttached();
+
+      await chrome.debugger.sendCommand(
+        { tabId: tabId },
+        'Page.addScriptToEvaluateOnNewDocument',
+        { source: stealthScriptSource }
+      );
+
+      logger.log(`[Stealth] Injected stealth script into tab ${tabId}`);
+    } catch (error) {
+      logger.log(`[Stealth] Failed to inject stealth script: ${error.message}`);
+    }
+  });
+
   // Set up console message listener (receives messages from content script)
   consoleHandler.setupMessageListener();
 
