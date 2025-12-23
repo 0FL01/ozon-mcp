@@ -1,0 +1,99 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$comment": "Карта стабильных CSS-селекторов Ozon. Приоритет: data-widget > aria-label > иерархический путь",
+    "_warnings": {
+        "nth-of-type": "⚠️ Селекторы nth-of-type(2), nth-of-type(3) не работают напрямую в browser_interact. Используйте browser_evaluate с querySelectorAll('button')[index]",
+        "skuGridSimple": "⚠️ Виджет skuGridSimple используется только на главной странице, отсутствует на странице поиска"
+    },
+    "search": {
+        "_description": "Поисковая строка и результаты поиска",
+        "container": "[data-widget='searchBarDesktop']",
+        "input": "[data-widget='searchBarDesktop'] input[name='text']",
+        "button": "[data-widget='searchBarDesktop'] button[aria-label='Поиск']",
+        "results": {
+            "grid": "[data-widget='tileGridDesktop']",
+            "gridSimple": "[data-widget='skuGridSimple']",
+            "_gridSimpleNote": "Используется только на главной странице, отсутствует на странице поиска",
+            "paginator": "[data-widget='infiniteVirtualPaginator']"
+        },
+        "filters": {
+            "container": "[data-widget='filtersDesktop']",
+            "active": "[data-widget='searchResultsFiltersActive']",
+            "sort": "[data-widget='searchResultsSort']"
+        },
+        "productCard": {
+            "link": "[data-widget='tileGridDesktop'] a[href*='/product/']",
+            "tile": "[data-widget='tileGridDesktop'] [data-index]"
+        }
+    },
+    "product": {
+        "_description": "Страница товара (PDP)",
+        "heading": "[data-widget='webProductHeading']",
+        "gallery": "[data-widget='webGallery']",
+        "price": {
+            "container": "[data-widget='webPrice']",
+            "current": "[data-widget='webPrice'] span.tsHeadline600Large"
+        },
+        "addToCart": {
+            "_comment": "Кнопки +/- появляются после добавления товара",
+            "container": "[data-widget='webAddToCart']",
+            "button": "[data-widget='webAddToCart'] button:first-of-type",
+            "decrement": "[data-widget='webAddToCart'] button:nth-of-type(2)",
+            "_decrementNote": "При количестве = 1 полностью удаляет товар из корзины",
+            "_decrementWorkaround": "Селектор nth-of-type(2) может не работать напрямую. Используйте querySelectorAll('button')[1]",
+            "increment": "[data-widget='webAddToCart'] button:nth-of-type(3)",
+            "_incrementWorkaround": "Селектор nth-of-type(3) может не работать напрямую. Используйте querySelectorAll('button')[2]",
+            "quantity": "[data-widget='webAddToCart'] span.pdp_af5",
+            "_quantityNote": "Счетчик исчезает когда товара нет в корзине",
+            "remove": "[data-widget='webAddToCart'] button:nth-of-type(2)",
+            "_removeScenario": "Нажатие на decrement при quantity=1 удаляет товар полностью. После удаления: кнопка меняется на 'Добавить в корзину', quantity исчезает, счетчик корзины уменьшается"
+        },
+        "variations": "[data-widget='webDetailSKU']",
+        "characteristics": {
+            "full": "[data-widget='webCharacteristics']",
+            "short": "[data-widget='webShortCharacteristics']"
+        },
+        "description": "[data-widget='webDescription']",
+        "reviews": {
+            "score": "[data-widget='webReviewProductScore']",
+            "tabs": "[data-widget='webReviewTabs']",
+            "gallery": "[data-widget='webReviewGallery']"
+        },
+        "favorite": "[data-widget='webAddToFavorite']",
+        "compare": "[data-widget='webAddToCompare']",
+        "share": "[data-widget='webSharingButton']",
+        "brand": "[data-widget='webBrand']",
+        "breadcrumbs": "[data-widget='breadCrumbs']"
+    },
+    "header": {
+        "_description": "Шапка сайта",
+        "container": "[data-widget='header']",
+        "catalog": "[data-widget='catalogMenu']",
+        "search": "[data-widget='searchBarDesktop']",
+        "cart": {
+            "container": "a[href='/cart']",
+            "icon": "a[href='/cart']"
+        },
+        "favorites": "[data-widget='favoriteCounter']",
+        "orders": "[data-widget='orderInfo']",
+        "profile": {
+            "anonymous": "[data-widget='profileMenuAnonymous']",
+            "authenticated": "[data-widget='profileMenu']"
+        },
+        "address": "[data-widget='addressBookBarWeb']",
+        "menu": "[data-widget='horizontalMenu']"
+    },
+    "modals": {
+        "_description": "Модальные окна и оверлеи",
+        "city": "[data-widget='addressBookBarWeb'] button",
+        "ageConfirmation": "[data-widget='ageConfirmation']",
+        "dialog": "[role='dialog']"
+    },
+    "common": {
+        "_description": "Общие элементы",
+        "separator": "[data-widget='separator']",
+        "footer": "[data-widget='footer']",
+        "container": "[data-widget='container']",
+        "island": "[data-widget='island']"
+    }
+}
