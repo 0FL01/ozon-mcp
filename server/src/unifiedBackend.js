@@ -5090,7 +5090,7 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
                 '[data-widget="orderInfo"]',
                 '[data-widget="profileMenuAnonymous"]',
                 '[data-widget="selectedCurrencyLanguage"]',
-                '[data-widget="searchBarDesktop"]'
+
               ].join(',');
               
               // Helper to check if element or any parent is in noise list

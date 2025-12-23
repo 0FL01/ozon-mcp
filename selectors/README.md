@@ -28,13 +28,13 @@
 
 ```javascript
 // Контейнер поиска
-document.querySelector('[data-widget="searchBarDesktop"]')
+document.querySelector('form')
 
 // Input поиска
-document.querySelector('[data-widget="searchBarDesktop"] input[name="text"]')
+document.querySelector('input[name="text"]')
 
 // Кнопка поиска
-document.querySelector('[data-widget="searchBarDesktop"] button[aria-label="Поиск"]')
+document.querySelector('button[aria-label="Поиск"]')
 ```
 
 ### Результаты поиска

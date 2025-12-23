@@ -7,9 +7,9 @@
     },
     "search": {
         "_description": "Поисковая строка и результаты поиска",
-        "container": "[data-widget='searchBarDesktop']",
-        "input": "[data-widget='searchBarDesktop'] input[name='text']",
-        "button": "[data-widget='searchBarDesktop'] button[aria-label='Поиск']",
+        "container": "form",
+        "input": "input[name='text']",
+        "button": "button[aria-label='Поиск']",
         "results": {
             "grid": "[data-widget='tileGridDesktop']",
             "gridSimple": "[data-widget='skuGridSimple']",
@@ -69,7 +69,7 @@
         "_description": "Шапка сайта",
         "container": "[data-widget='header']",
         "catalog": "[data-widget='catalogMenu']",
-        "search": "[data-widget='searchBarDesktop']",
+        "search": "form",
         "cart": {
             "container": "a[href='/cart']",
             "icon": "a[href='/cart']"
