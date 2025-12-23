@@ -5049,10 +5049,41 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
             (() => {
               const mode = ${JSON.stringify(mode)};
               const customSelector = ${JSON.stringify(selector)};
+              // Detect Ozon to apply specific noise filtering
+              const isOzon = window.location.hostname.includes('ozon');
+              
+              const OZON_NOISE_SELECTORS = [
+                // Recommendations (major noise source ~16%)
+                '[data-widget="paginator"]',
+                '[data-widget="skuGrid"]',
+                '[data-widget="skuLine"]',
+                '[data-widget="webSimilarGoods"]',
+                '[data-widget="webRecomGoods"]',
+                
+                // Header/Footer & Navigation
+                '[data-widget="header"]',
+                '[data-widget="footer"]',
+                'header',
+                'footer',
+                '.footer',
+                '[data-widget="breadCrumbs"]',
+                
+                // Tags and Hashtags
+                '[data-widget="tagList"]',
+                '[data-widget="webHashtags"]',
+                
+                // Sticky elements and Ads
+                '[data-widget="webStickyProducts"]',
+                '.adv-banner',
+                '[data-widget="webAd"]'
+              ].join(',');
 
               // HTML to Markdown converter
               function htmlToMarkdown(element, baseUrl) {
                 let markdown = '';
+                
+                // Track removed noise for stats
+                let noiseRemoved = 0;
 
                 function processNode(node, indent = '') {
                   if (node.nodeType === Node.TEXT_NODE) {
@@ -5062,6 +5093,13 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
                   }
 
                   if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+                  // Ozon specific noise filtering
+                  if (isOzon && node.matches && node.matches(OZON_NOISE_SELECTORS)) {
+                    // console.log('Skipping noise:', node.getAttribute('data-widget') || node.tagName);
+                    noiseRemoved++;
+                    return;
+                  }
 
                   const tag = node.tagName.toLowerCase();
 
@@ -5098,8 +5136,12 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
                       const href = node.getAttribute('href');
                       const text = node.textContent.trim();
                       if (href && text) {
-                        const fullUrl = new URL(href, baseUrl).href;
-                        markdown += \`[\${text}](\${fullUrl})\`;
+                        try {
+                          const fullUrl = new URL(href, baseUrl).href;
+                          markdown += \`[\${text}](\${fullUrl})\`;
+                        } catch (e) {
+                          markdown += text;
+                        }
                       } else if (text) {
                         markdown += text;
                       }
@@ -5109,8 +5151,12 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
                       const src = node.getAttribute('src');
                       const alt = node.getAttribute('alt') || '';
                       if (src) {
-                        const fullSrc = new URL(src, baseUrl).href;
-                        markdown += \`\\n\\n![\${alt}](\${fullSrc})\\n\\n\`;
+                        try {
+                          const fullSrc = new URL(src, baseUrl).href;
+                          markdown += \`\\n\\n![\${alt}](\${fullSrc})\\n\\n\`;
+                        } catch (e) {
+                          // Ignore invalid URLs
+                        }
                       }
                       break;
 
@@ -5189,7 +5235,7 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
                 }
 
                 processNode(element);
-                return markdown;
+                return { markdown, noiseRemoved };
               }
 
               // Find content area based on mode
@@ -5233,7 +5279,8 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
               }
 
               // Convert to markdown
-              const markdown = htmlToMarkdown(contentElement, window.location.href);
+              const result = htmlToMarkdown(contentElement, window.location.href);
+              const markdown = result.markdown;
 
               // Clean up excessive whitespace
               const cleaned = markdown
@@ -5245,9 +5292,11 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
                 markdown: cleaned,
                 mode: mode,
                 detectedSelector: mode === 'auto' ? (contentElement.tagName.toLowerCase() + (contentElement.className ? '.' + contentElement.className.split(' ')[0] : '')) : null,
-                contentLength: cleaned.length
+                contentLength: cleaned.length,
+                noiseRemoved: result.noiseRemoved
               };
             })()
+          
           `,
           returnByValue: true
         }
@@ -5271,6 +5320,9 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
       if (data.detectedSelector) {
         infoText += `**Detected element:** ${data.detectedSelector}\n`;
       }
+      if (data.noiseRemoved > 0) {
+        infoText += `**🧹 Noise Removed:** ${data.noiseRemoved} elements (reviews, recommendations, etc)\n`;
+      }
       infoText += `**Total lines:** ${totalLines}\n`;
       infoText += `**Showing:** lines ${startLine + 1}-${endLine} (${endLine - startLine} lines)\n`;
       if (truncated) {
@@ -5284,6 +5336,7 @@ ${clsEmoji} Cumulative Layout Shift (CLS): ${timing.cls?.toFixed(3) || 'N/A'}
           success: true,
           mode: data.mode,
           detectedSelector: data.detectedSelector,
+          noiseRemoved: data.noiseRemoved,
           totalLines,
           startLine: startLine + 1,
           endLine,
