@@ -191,7 +191,6 @@ class OzonHandler {
 
     async handleParseProductPage(args) {
         const s = this.selectors.product;
-        // Check verification tag
 
         const result = await this._evaluate(`
             () => {
@@ -201,15 +200,110 @@ class OzonHandler {
                 
                 const getTxt = (sel) => {
                     const el = document.querySelector(sel);
-                    return el ? el.innerText : null;
+                    return el ? el.innerText.trim() : null;
+                };
+
+                // Parse description block
+                const parseDescription = () => {
+                    const descEl = document.querySelector("${s.description}");
+                    if (!descEl) return null;
+                    return descEl.innerText.trim();
+                };
+
+                // Parse characteristics table
+                const parseCharacteristics = () => {
+                    const chars = [];
+                    
+                    // Try full characteristics first
+                    let charEl = document.querySelector("${s.characteristics.full}");
+                    if (!charEl) {
+                        // Fallback to short characteristics
+                        charEl = document.querySelector("${s.characteristics.short}");
+                    }
+                    if (!charEl) return chars;
+                    
+                    // Ozon uses dl/dt/dd structure or div-based rows
+                    // Try dl/dt/dd first
+                    const dtElements = charEl.querySelectorAll('dt');
+                    const ddElements = charEl.querySelectorAll('dd');
+                    if (dtElements.length > 0 && dtElements.length === ddElements.length) {
+                        for (let i = 0; i < dtElements.length; i++) {
+                            chars.push({
+                                name: dtElements[i].innerText.trim(),
+                                value: ddElements[i].innerText.trim()
+                            });
+                        }
+                        return chars;
+                    }
+                    
+                    // Try table structure
+                    const rows = charEl.querySelectorAll('tr');
+                    if (rows.length > 0) {
+                        rows.forEach(row => {
+                            const cells = row.querySelectorAll('td, th');
+                            if (cells.length >= 2) {
+                                chars.push({
+                                    name: cells[0].innerText.trim(),
+                                    value: cells[1].innerText.trim()
+                                });
+                            }
+                        });
+                        return chars;
+                    }
+                    
+                    // Fallback: try to find spans with pairs (common Ozon pattern)
+                    // Look for characteristic rows: usually divs with two spans
+                    const charRows = charEl.querySelectorAll('[class*="char"], [class*="attribute"]');
+                    if (charRows.length === 0) {
+                        // Generic approach: find all direct child divs that look like rows
+                        const allDivs = charEl.querySelectorAll('div > div');
+                        allDivs.forEach(div => {
+                            const spans = div.querySelectorAll('span');
+                            if (spans.length >= 2) {
+                                const name = spans[0].innerText.trim();
+                                const value = spans[spans.length - 1].innerText.trim();
+                                if (name && value && name !== value) {
+                                    chars.push({ name, value });
+                                }
+                            }
+                        });
+                    }
+                    
+                    // If still empty, just grab all text as fallback
+                    if (chars.length === 0) {
+                        const lines = charEl.innerText.split('\\n').filter(l => l.trim());
+                        for (let i = 0; i < lines.length - 1; i += 2) {
+                            if (lines[i] && lines[i + 1]) {
+                                chars.push({
+                                    name: lines[i].trim(),
+                                    value: lines[i + 1].trim()
+                                });
+                            }
+                        }
+                    }
+                    
+                    return chars;
+                };
+
+                // Check availability
+                const checkAvailability = () => {
+                    const addToCartEl = document.querySelector("${s.addToCart.container}");
+                    if (!addToCartEl) return "Unknown";
+                    const text = addToCartEl.innerText.toLowerCase();
+                    if (text.includes('нет в наличии') || text.includes('закончился')) {
+                        return "Out of stock";
+                    }
+                    return "Available";
                 };
 
                 return {
                     title: getTxt("${s.heading}"),
                     price: getTxt("${s.price.current}"),
                     variations: Array.from(document.querySelectorAll("${s.variations}"))
-                        .map(el => el.innerText),
-                    availability: "Available" // Basic placeholder, real logic needs to check 'Not available' text
+                        .map(el => el.innerText.trim()),
+                    availability: checkAvailability(),
+                    description: parseDescription(),
+                    characteristics: parseCharacteristics()
                 };
             }
         `);
