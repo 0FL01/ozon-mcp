@@ -16,15 +16,12 @@ import { DialogHandler } from '../shared/handlers/dialogs.js';
 import { ConsoleHandler } from '../shared/handlers/console.js';
 import { createBrowserAdapter } from '../shared/adapters/browser.js';
 import { wrapWithUnwrap, shouldUnwrap } from '../shared/utils/unwrap.js';
-import { setupInstallHandler } from '../shared/handlers/install.js';
 
 // Initialize browser adapter at top level (before async IIFE)
 const browserAdapter = createBrowserAdapter();
 const chrome = browserAdapter.getRawAPI();
 
-// Set up welcome page to open on first install (must be at top level for MV3)
 // Browser name is auto-detected from manifest.json
-setupInstallHandler(chrome);
 
 // Top-level variables for tab monitoring
 let tabHandlers = null;
@@ -305,23 +302,7 @@ console.log('[Background] ✅ tabs.onUpdated listener registered at TOP LEVEL!')
           return;
         }
 
-        // Handle OAuth login success from content script
-        if (message.type === 'loginSuccess') {
-          logger.logAlways('[Background] Login success - saving tokens');
-          await chrome.storage.local.set({
-            accessToken: message.accessToken,
-            refreshToken: message.refreshToken,
-            isPro: true
-          });
-          logger.logAlways('[Background] Tokens saved to storage');
 
-          // Reconnect with new PRO mode credentials
-          wsConnection.disconnect();
-          await wsConnection.connect();
-
-          sendResponse({ success: true });
-          return;
-        }
 
         // Handle connection status request from popup
         if (message.type === 'getConnectionStatus') {

@@ -24,50 +24,7 @@ window.addEventListener('message', (event) => {
   }
 });
 
-// Watch for a div with class 'mcp-extension-tokens' containing data attributes
-const observer = new MutationObserver(() => {
-  // Check for focus request
-  const focusElement = document.querySelector('.mcp-extension-focus-tab');
-  if (focusElement) {
-    console.log('[Content Script] Focus request detected, focusing tab...');
-    chrome.runtime.sendMessage({ type: 'focusTab' });
-    // Don't disconnect - we still need to watch for tokens
-  }
 
-  // Check for tokens
-  const tokenElement = document.querySelector('.mcp-extension-tokens');
-  if (tokenElement) {
-    const accessToken = tokenElement.getAttribute('data-access-token');
-    const refreshToken = tokenElement.getAttribute('data-refresh-token');
-
-    if (accessToken && refreshToken) {
-      console.log('[Content Script] Found tokens in DOM, sending to background...');
-
-      // Send to background script
-      chrome.runtime.sendMessage({
-        type: 'loginSuccess',
-        accessToken: accessToken,
-        refreshToken: refreshToken
-      }, (response) => {
-        console.log('[Content Script] Response from background:', response);
-
-        // Close the window after successful token save
-        setTimeout(() => {
-          window.close();
-        }, 500);
-      });
-
-      // Stop observing
-      observer.disconnect();
-    }
-  }
-});
-
-// Start observing the document for changes
-observer.observe(document.documentElement, {
-  childList: true,
-  subtree: true
-});
 
 // Silently watching for login tokens
 
@@ -90,10 +47,10 @@ function detectTechStack() {
     // JS Frameworks
     // React - check global object, dev tools hook, or mount point patterns
     if (window.React ||
-        window.__REACT_DEVTOOLS_GLOBAL_HOOK__ ||
-        document.getElementById('root') ||
-        document.getElementById('react-root') ||
-        document.querySelector('[id^="mount_"]')) {
+      window.__REACT_DEVTOOLS_GLOBAL_HOOK__ ||
+      document.getElementById('root') ||
+      document.getElementById('react-root') ||
+      document.querySelector('[id^="mount_"]')) {
       stack.frameworks.push('React');
       stack.spa = true;
     }
@@ -107,14 +64,14 @@ function detectTechStack() {
     }
     // Turbo/Hotwire - check multiple sources
     if (window.Turbo ||
-        document.querySelector('turbo-frame') ||
-        document.querySelector('meta[name="turbo-cache-control"]') ||
-        (() => {
-          try {
-            const importmap = document.querySelector('script[type="importmap"]');
-            return importmap?.textContent && (importmap.textContent.includes('@hotwired/turbo') || importmap.textContent.includes('turbo'));
-          } catch { return false; }
-        })()) {
+      document.querySelector('turbo-frame') ||
+      document.querySelector('meta[name="turbo-cache-control"]') ||
+      (() => {
+        try {
+          const importmap = document.querySelector('script[type="importmap"]');
+          return importmap?.textContent && (importmap.textContent.includes('@hotwired/turbo') || importmap.textContent.includes('turbo'));
+        } catch { return false; }
+      })()) {
       stack.frameworks.push('Turbo');
       stack.spa = true;
     }
@@ -137,9 +94,9 @@ function detectTechStack() {
     }
     // Polymer - Google's web components library (used on YouTube, etc.)
     if (window.Polymer ||
-        document.querySelector('iron-iconset-svg') ||
-        document.querySelector('ytd-app') ||
-        document.querySelector('[is^="iron-"], [is^="paper-"], [is^="ytd-"]')) {
+      document.querySelector('iron-iconset-svg') ||
+      document.querySelector('ytd-app') ||
+      document.querySelector('[is^="iron-"], [is^="paper-"], [is^="ytd-"]')) {
       stack.frameworks.push('Polymer');
       stack.spa = true;
     }
@@ -166,7 +123,7 @@ function detectTechStack() {
 
     // CSS Frameworks - check DOM elements and attributes
     if (document.querySelector('.container') &&
-        (document.querySelector('[class*="col-"]') || document.querySelector('[data-bs-]'))) {
+      (document.querySelector('[class*="col-"]') || document.querySelector('[data-bs-]'))) {
       stack.css.push('Bootstrap');
     }
     // Tailwind - check for distinctive patterns (avoid Bootstrap false positives)
@@ -192,14 +149,14 @@ function detectTechStack() {
     // Dev Tools / Auto-reload
     // Hotwire Spark - check multiple sources
     if (window.Spark ||
-        document.querySelector('script[src*="hotwire_spark"]') ||
-        document.querySelector('script[src*="hotwire-spark"]') ||
-        (() => {
-          try {
-            const importmap = document.querySelector('script[type="importmap"]');
-            return importmap?.textContent && (importmap.textContent.includes('@hotwired/spark') || importmap.textContent.includes('hotwire_spark'));
-          } catch { return false; }
-        })()) {
+      document.querySelector('script[src*="hotwire_spark"]') ||
+      document.querySelector('script[src*="hotwire-spark"]') ||
+      (() => {
+        try {
+          const importmap = document.querySelector('script[type="importmap"]');
+          return importmap?.textContent && (importmap.textContent.includes('@hotwired/spark') || importmap.textContent.includes('hotwire_spark'));
+        } catch { return false; }
+      })()) {
       stack.devTools.push('Hotwire Spark');
       stack.autoReload = true;
     }
