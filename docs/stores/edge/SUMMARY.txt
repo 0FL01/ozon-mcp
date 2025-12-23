@@ -1,1 +1,0 @@
-Give Claude Code and other AI assistants direct control of your real Edge browser through the Model Context Protocol. Stay logged in, bypass bot detection, automate authenticated workflows.

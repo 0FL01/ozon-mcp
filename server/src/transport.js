@@ -1,13 +1,11 @@
 /**
- * Transport Layer Abstraction
+ * Transport Layer for Ozon MCP
  *
- * Provides a unified interface for sending commands to the extension,
- * whether directly via WebSocket or through a proxy.
+ * Direct transport for WebSocket connection to Chrome extension.
  */
 
 /**
  * Base Transport interface
- * Both DirectTransport and ProxyTransport implement this
  */
 class Transport {
   /**
@@ -29,7 +27,7 @@ class Transport {
 }
 
 /**
- * DirectTransport - for standalone mode
+ * DirectTransport - local mode
  * Uses ExtensionServer for direct WebSocket connection to extension
  */
 class DirectTransport extends Transport {
@@ -39,33 +37,12 @@ class DirectTransport extends Transport {
   }
 
   async sendCommand(method, params) {
-    // Send directly to extension via WebSocket
     return await this._server.sendCommand(method, params);
   }
 
   async close() {
-    // Server cleanup is handled by StatefulBackend
+    // Server cleanup handled separately
   }
 }
 
-/**
- * ProxyTransport - for proxy mode
- * Wraps MCPConnection
- */
-class ProxyTransport extends Transport {
-  constructor(mcpConnection) {
-    super();
-    this._mcpConnection = mcpConnection;
-  }
-
-  async sendCommand(method, params) {
-    // Send via MCPConnection which routes through proxy
-    return await this._mcpConnection.sendRequest(method, params);
-  }
-
-  async close() {
-    await this._mcpConnection.close();
-  }
-}
-
-module.exports = { Transport, DirectTransport, ProxyTransport };
+module.exports = { Transport, DirectTransport };

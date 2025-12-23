@@ -1,9 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "__MSG_extName__",
-  "version": "1.9.21",
-  "description": "__MSG_extDescription__",
-  "default_locale": "en",
+  "name": "Ozon MCP",
+  "version": "1.0.0",
+  "description": "MCP browser extension for Ozon marketplace automation",
   "permissions": [
     "alarms",
     "debugger",
@@ -16,16 +15,14 @@
     "scripting"
   ],
   "host_permissions": [
-    "<all_urls>",
-    "*://*.railsblueprint.com/*",
-    "*://*.blueprintmcp.com/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "src/background-module.js",
     "type": "module"
   },
   "action": {
-    "default_title": "Blueprint MCP for Chrome",
+    "default_title": "Ozon MCP",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
