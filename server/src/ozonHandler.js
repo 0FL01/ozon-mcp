@@ -252,30 +252,31 @@ class OzonHandler {
         await this._humanScroll();
         await this._randomWait(800, 1500);
 
-        const result = await this._evaluate(`
-            () => {
+        // Step 1: Parse basic product info (without sizes)
+        const basicResult = await this._evaluate(`
+            function() {
                 if (!document.querySelector("${s.heading}")) {
                     return { error: "Not a product page" };
                 }
                 
-                const getTxt = (sel) => {
-                    const el = document.querySelector(sel);
+                var getTxt = function(sel) {
+                    var el = document.querySelector(sel);
                     return el ? el.innerText.trim() : null;
                 };
 
                 // Parse description block
-                const parseDescription = () => {
-                    const descEl = document.querySelector("${s.description}");
+                var parseDescription = function() {
+                    var descEl = document.querySelector("${s.description}");
                     if (!descEl) return null;
                     return descEl.innerText.trim();
                 };
 
                 // Parse characteristics table
-                const parseCharacteristics = () => {
-                    const chars = [];
+                var parseCharacteristics = function() {
+                    var chars = [];
                     
                     // Try full characteristics first
-                    let charEl = document.querySelector("${s.characteristics.full}");
+                    var charEl = document.querySelector("${s.characteristics.full}");
                     if (!charEl) {
                         // Fallback to short characteristics
                         charEl = document.querySelector("${s.characteristics.short}");
@@ -283,11 +284,10 @@ class OzonHandler {
                     if (!charEl) return chars;
                     
                     // Ozon uses dl/dt/dd structure or div-based rows
-                    // Try dl/dt/dd first
-                    const dtElements = charEl.querySelectorAll('dt');
-                    const ddElements = charEl.querySelectorAll('dd');
+                    var dtElements = charEl.querySelectorAll('dt');
+                    var ddElements = charEl.querySelectorAll('dd');
                     if (dtElements.length > 0 && dtElements.length === ddElements.length) {
-                        for (let i = 0; i < dtElements.length; i++) {
+                        for (var i = 0; i < dtElements.length; i++) {
                             chars.push({
                                 name: dtElements[i].innerText.trim(),
                                 value: ddElements[i].innerText.trim()
@@ -297,46 +297,28 @@ class OzonHandler {
                     }
                     
                     // Try table structure
-                    const rows = charEl.querySelectorAll('tr');
+                    var rows = charEl.querySelectorAll('tr');
                     if (rows.length > 0) {
-                        rows.forEach(row => {
-                            const cells = row.querySelectorAll('td, th');
+                        for (var j = 0; j < rows.length; j++) {
+                            var cells = rows[j].querySelectorAll('td, th');
                             if (cells.length >= 2) {
                                 chars.push({
                                     name: cells[0].innerText.trim(),
                                     value: cells[1].innerText.trim()
                                 });
                             }
-                        });
+                        }
                         return chars;
                     }
                     
-                    // Fallback: try to find spans with pairs (common Ozon pattern)
-                    // Look for characteristic rows: usually divs with two spans
-                    const charRows = charEl.querySelectorAll('[class*="char"], [class*="attribute"]');
-                    if (charRows.length === 0) {
-                        // Generic approach: find all direct child divs that look like rows
-                        const allDivs = charEl.querySelectorAll('div > div');
-                        allDivs.forEach(div => {
-                            const spans = div.querySelectorAll('span');
-                            if (spans.length >= 2) {
-                                const name = spans[0].innerText.trim();
-                                const value = spans[spans.length - 1].innerText.trim();
-                                if (name && value && name !== value) {
-                                    chars.push({ name, value });
-                                }
-                            }
-                        });
-                    }
-                    
-                    // If still empty, just grab all text as fallback
+                    // Fallback: grab text lines
                     if (chars.length === 0) {
-                        const lines = charEl.innerText.split('\\n').filter(l => l.trim());
-                        for (let i = 0; i < lines.length - 1; i += 2) {
-                            if (lines[i] && lines[i + 1]) {
+                        var lines = charEl.innerText.split('\\n').filter(function(l) { return l.trim(); });
+                        for (var k = 0; k < lines.length - 1; k += 2) {
+                            if (lines[k] && lines[k + 1]) {
                                 chars.push({
-                                    name: lines[i].trim(),
-                                    value: lines[i + 1].trim()
+                                    name: lines[k].trim(),
+                                    value: lines[k + 1].trim()
                                 });
                             }
                         }
@@ -346,27 +328,83 @@ class OzonHandler {
                 };
 
                 // Check availability
-                const checkAvailability = () => {
-                    const addToCartEl = document.querySelector("${s.addToCart.container}");
+                var checkAvailability = function() {
+                    var addToCartEl = document.querySelector("${s.addToCart.container}");
                     if (!addToCartEl) return "Unknown";
-                    const text = addToCartEl.innerText.toLowerCase();
-                    if (text.includes('нет в наличии') || text.includes('закончился')) {
+                    var text = addToCartEl.innerText.toLowerCase();
+                    if (text.indexOf('нет в наличии') > -1 || text.indexOf('закончился') > -1) {
                         return "Out of stock";
                     }
                     return "Available";
+                };
+
+                // Get currently selected size (visible without opening dropdown)
+                var getCurrentSize = function() {
+                    var selectedEl = document.querySelector("${s.aspects?.sizeDropdown?.selectedText || '[data-widget=\"webAspects\"] [role=\"listbox\"] span'}");
+                    return selectedEl ? selectedEl.innerText.trim() : null;
                 };
 
                 return {
                     title: getTxt("${s.heading}"),
                     price: getTxt("${s.price.current}"),
                     variations: Array.from(document.querySelectorAll("${s.variations}"))
-                        .map(el => el.innerText.trim()),
+                        .map(function(el) { return el.innerText.trim(); }),
                     availability: checkAvailability(),
                     description: parseDescription(),
-                    characteristics: parseCharacteristics()
+                    characteristics: parseCharacteristics(),
+                    currentSize: getCurrentSize(),
+                    hasSizeDropdown: !!document.querySelector("${s.aspects?.sizeDropdown?.trigger || '[data-widget=\"webAspects\"] [role=\"listbox\"]'}")
                 };
             }
         `);
+
+        // Step 2: If size dropdown exists, click to reveal options
+        let sizes = { available: [], selected: basicResult.currentSize };
+
+        if (basicResult.hasSizeDropdown) {
+            const sizeDropdownSelector = s.aspects?.sizeDropdown?.trigger || '[data-widget="webAspects"] [role="listbox"]';
+            const optionsSelector = s.aspects?.sizeDropdown?.options || '[role="option"]';
+
+            try {
+                // Click to open dropdown
+                await this._interact([{ type: 'click', selector: sizeDropdownSelector }]);
+                await this._randomWait(300, 600);
+
+                // Collect options
+                const optionsResult = await this._evaluate(`
+                    function() {
+                        var options = document.querySelectorAll("${optionsSelector}");
+                        var sizes = [];
+                        for (var i = 0; i < options.length; i++) {
+                            sizes.push(options[i].textContent.trim());
+                        }
+                        return sizes;
+                    }
+                `);
+
+                if (Array.isArray(optionsResult) && optionsResult.length > 0) {
+                    sizes.available = optionsResult;
+                }
+
+                // Close dropdown
+                await this._interact([{ type: 'press_key', key: 'Escape' }]);
+                await this._randomWait(100, 300);
+
+            } catch (e) {
+                // Size dropdown interaction failed, continue without sizes
+            }
+        }
+
+        // Combine results
+        const result = {
+            title: basicResult.title,
+            price: basicResult.price,
+            variations: basicResult.variations,
+            sizes: sizes,
+            availability: basicResult.availability,
+            description: basicResult.description,
+            characteristics: basicResult.characteristics
+        };
 
         return {
             content: [{

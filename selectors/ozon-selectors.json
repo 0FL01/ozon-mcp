@@ -63,7 +63,17 @@
         "compare": "[data-widget='webAddToCompare']",
         "share": "[data-widget='webSharingButton']",
         "brand": "[data-widget='webBrand']",
-        "breadcrumbs": "[data-widget='breadCrumbs']"
+        "breadcrumbs": "[data-widget='breadCrumbs']",
+        "aspects": {
+            "_description": "Виджет с аспектами товара (цвет, размер и т.д.)",
+            "container": "[data-widget='webAspects']",
+            "sizeDropdown": {
+                "_description": "Dropdown выбора размера. Опции появляются в DOM только после клика на listbox",
+                "trigger": "[data-widget='webAspects'] [role='listbox']",
+                "options": "[role='option']",
+                "selectedText": "[data-widget='webAspects'] [role='listbox'] span.q6b3_0_4-a"
+            }
+        }
     },
     "header": {
         "_description": "Шапка сайта",
