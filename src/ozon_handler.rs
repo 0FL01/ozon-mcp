@@ -294,6 +294,11 @@ impl OzonHandler {
             .and_then(Value::as_str)
             .map(String::from);
 
+        // Get search button selector (fallback to aria-label)
+        let search_button = self
+            .selector("search.button")
+            .unwrap_or("button[aria-label='Поиск']");
+
         self.browser_call(
             transport,
             "browser_interact",
@@ -303,7 +308,7 @@ impl OzonHandler {
                     {"type": "clear", "selector": search_input},
                     {"type": "type", "selector": search_input, "text": query},
                     {"type": "wait", "timeout": Self::pseudo_random_range_ms(300, 800)},
-                    {"type": "press_key", "key": "Enter"}
+                    {"type": "click", "selector": search_button}
                 ]
             }),
         )
