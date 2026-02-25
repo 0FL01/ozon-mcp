@@ -19,7 +19,7 @@ tmp/*
 # Ignore built extension artifacts in releases (zips are tracked)
 releases/*/dist/
 
-.serena
+**target**
 
 TO-DO.md
 

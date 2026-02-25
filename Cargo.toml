@@ -1,0 +1,62 @@
+[package]
+name = "ozon-mcp"
+version = "1.0.0"
+edition = "2024"
+authors = ["0FL01"]
+description = "MCP server for Search items on ozon marketplace for Linux systems via Model Context Protocol"
+license = "MIT"
+repository = "https://github.com/0FL01/ozon-mcp"
+homepage = "https://github.com/0FL01/ozon-mcp-rs#readme"
+keywords = ["ozon", "mcp", "model-context-protocol", "server", "linux", "automation", "remote", "cli"]
+
+[[bin]]
+name = "ozon-mcp"
+path = "src/main.rs"
+
+[dependencies]
+# MCP SDK
+rmcp = { version = "0.16.0", features = ["server", "transport-io"] }
+
+# Async runtime
+tokio = { version = "1.49", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "signal"] }
+tokio-tungstenite = "0.28.0"
+futures-util = "0.3"
+
+# CLI
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# Error handling
+anyhow = "1.0.102"
+
+# Serialization (for MCP)
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+schemars = "1.2.1"
+
+# Data extraction and payload helpers
+jsonpath_lib = "0.3"
+imagesize = "0.14.0"
+bytes = "1"
+base64 = "0.22"
+url = "2.5"
+
+# Tracing/Logging
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
+opt-level = "z"
+
+[lints.clippy]
+# Safety: Catch uninitialized memory assumptions
+uninit_assumed_init = "deny"
+
+# Safety: Catch other unsafe patterns
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
+
+# Code quality - set to lower priority so specific lints can override
+all = { level = "warn", priority = -1 }
