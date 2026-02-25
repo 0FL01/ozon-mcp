@@ -1,0 +1,61 @@
+[ozon-mcp] Starting Ozon MCP Server...
+[ozon-mcp] Version: 1.0.0
+[ozon-mcp] Port: 5555
+[FileLogger] Logging enabled - writing to: /home/stfu/.local/state/blueprint-mcp/mcp-debug.log
+[ozon-mcp] Debug mode enabled
+[ExtensionServer] Server listening on 127.0.0.1:5555
+[ozon-mcp] Extension server listening on 127.0.0.1:5555
+[ozon-mcp] Loaded Ozon selectors configuration
+[ozon-mcp] Registering MCP handlers...
+[UnifiedBackend] Initialized. Ozon selectors loaded: 8 top-level keys
+[ozon-mcp] Starting stdio transport...
+[ozon-mcp] Ozon MCP server ready
+[ozon-mcp] Waiting for Chrome extension connection on port 5555
+[ExtensionServer] Extension connection attempt
+[ExtensionServer] Extension connected
+[ExtensionServer] Received from extension: response
+[ExtensionServer] Handshake received: {
+  "type": "handshake",
+  "browser": "Chrome",
+  "version": "1.0.0",
+  "buildTimestamp": "2025-12-21T18:15:35.208Z"
+}
+[ExtensionServer] Browser type detected: Chrome, Build timestamp: 2025-12-21T18:15:35.208Z
+[ExtensionServer] Sent ping to extension
+[ExtensionServer] Received pong from extension
+[ExtensionServer] Sent ping to extension
+[ExtensionServer] Received pong from extension
+[ExtensionServer] Sent ping to extension
+[ExtensionServer] Received pong from extension
+[ExtensionServer] Sent ping to extension
+[ExtensionServer] Received pong from extension
+[ExtensionServer] Extension disconnected
+[ExtensionServer] Extension connection attempt
+[ExtensionServer] Extension connected
+[ExtensionServer] Received from extension: response
+[ExtensionServer] Handshake received: {
+  "type": "handshake",
+  "browser": "Chrome",
+  "version": "1.0.0",
+  "buildTimestamp": "2025-12-21T18:15:35.208Z"
+}
+[ExtensionServer] Browser type detected: Chrome, Build timestamp: 2025-12-21T18:15:35.208Z
+[ExtensionServer] Sent ping to extension
+[ExtensionServer] Received pong from extension
+[ExtensionServer] Sent ping to extension
+[ExtensionServer] Received pong from extension
+[ExtensionServer] Sent ping to extension
+[ExtensionServer] Received pong from extension
+[ExtensionServer] Extension disconnected
+[ExtensionServer] Extension connection attempt
+[ExtensionServer] Extension connected
+[ExtensionServer] Received from extension: response
+[ExtensionServer] Handshake received: {
+  "type": "handshake",
+  "browser": "Chrome",
+  "version": "1.0.0",
+  "buildTimestamp": "2025-12-21T18:15:35.208Z"
+}
+[ExtensionServer] Browser type detected: Chrome, Build timestamp: 2025-12-21T18:15:35.208Z
+[ExtensionServer] Sent ping to extension
+[ExtensionServer] Received pong from extension

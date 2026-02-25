@@ -19,7 +19,37 @@
         "filters": {
             "container": "[data-widget='filtersDesktop']",
             "active": "[data-widget='searchResultsFiltersActive']",
-            "sort": "[data-widget='searchResultsSort']"
+            "sort": "[data-widget='searchResultsSort']",
+            "_applyMechanism": "auto (AJAX, URL обновляется автоматически)",
+            "_waitTime": "1500-2000ms после клика для загрузки результатов",
+            "brand": {
+                "_description": "Фильтр по бренду (чекбоксы)",
+                "container": "[data-widget='filtersDesktop']",
+                "findByText": "label span",
+                "_applyMechanism": "auto - применяется сразу после клика",
+                "_xpath": "//div[@data-widget='filtersDesktop']//label[.//span[contains(text(), '{brand}')]]"
+            },
+            "price": {
+                "_description": "Фильтр по цене (диапазон)",
+                "header": "div",
+                "minInput": "(//div[@data-widget='filtersDesktop']//div[contains(text(), 'Цена')]/following-sibling::div//input)[1]",
+                "maxInput": "(//div[@data-widget='filtersDesktop']//div[contains(text(), 'Цена')]/following-sibling::div//input)[2]",
+                "_applyMechanism": "auto - применяется при blur или Enter",
+                "urlParam": "currency_price",
+                "_format": "MIN;MAX (например: 1000.000%3B70000.000)"
+            },
+            "sort": {
+                "_description": "Сортировка результатов",
+                "trigger": "[data-widget='searchResultsSort'] input",
+                "options": "[data-widget='searchResultsSort'] [role='option'], [data-widget='searchResultsSort'] div[role='listbox'] div",
+                "_applyMechanism": "auto - применяется при выборе опции",
+                "urlParam": "sort"
+            },
+            "activeFilters": {
+                "_description": "Блок активных фильтров вверху страницы",
+                "container": "[data-widget='searchResultsFiltersActive']",
+                "resetButton": "[data-widget='searchResultsFiltersActive'] button"
+            }
         },
         "productCard": {
             "link": "a.tile-clickable-element",

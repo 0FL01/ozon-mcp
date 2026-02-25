@@ -1281,6 +1281,29 @@ pub fn input_schema_for_tool(name: &str) -> Value {
             "type": "object",
             "properties": {},
         }),
+        // DISABLED: ozon_apply_filter schema
+        // Reason: Filter application requires complex React event simulation
+        // Ozon uses virtual scrolling and session-validated URLs
+        // Attempted implementations:
+        // 1. DOM click approach - fails due to virtual list (items not in DOM)
+        // 2. URL manipulation approach - fails due to session validation
+        // 3. Proper solution requires: React devtools integration or CDP Runtime.evaluate
+        //    with React-specific event dispatch and state synchronization
+        // "ozon_apply_filter" => json!({
+        //     "type": "object",
+        //     "properties": {
+        //         "filter_type": {
+        //             "type": "string",
+        //             "enum": ["brand", "price_min", "price_max", "sort"],
+        //             "description": "Type of filter to apply",
+        //         },
+        //         "value": {
+        //             "type": "string",
+        //             "description": "Filter value (brand name, price, or sort option)",
+        //         }
+        //     },
+        //     "required": ["filter_type", "value"],
+        // }),
         _ => json!({
             "type": "object",
             "properties": {},

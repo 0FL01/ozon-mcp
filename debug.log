@@ -1,0 +1,165 @@
+[ozon-mcp] Starting Ozon MCP Server...
+[ozon-mcp] Version: 1.0.0
+[ozon-mcp] Port: 5555
+[FileLogger] Logging enabled - writing to: /home/stfu/.local/state/blueprint-mcp/mcp-debug.log
+[ozon-mcp] Debug mode enabled
+[ExtensionServer] WebSocketServer error: {
+  "code": "EADDRINUSE",
+  "errno": -98,
+  "syscall": "listen",
+  "address": "127.0.0.1",
+  "port": 5555
+}
+[ExtensionServer] HTTP Server error: {
+  "code": "EADDRINUSE",
+  "errno": -98,
+  "syscall": "listen",
+  "address": "127.0.0.1",
+  "port": 5555
+}
+[ExtensionServer] ❌ ERROR: Port 5555 is already in use!
+[ExtensionServer] Please stop other running instances or zombie processes:
+[ExtensionServer] Run: lsof -ti:5555 | xargs kill -9
+[ozon-mcp] Fatal error: Error: listen EADDRINUSE: address already in use 127.0.0.1:5555
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at node:net:2206:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 5555
+}
+[ozon-mcp] Starting Ozon MCP Server...
+[ozon-mcp] Version: 1.0.0
+[ozon-mcp] Port: 5555
+[FileLogger] Logging enabled - writing to: /home/stfu/.local/state/blueprint-mcp/mcp-debug.log
+[ozon-mcp] Debug mode enabled
+[ExtensionServer] WebSocketServer error: {
+  "code": "EADDRINUSE",
+  "errno": -98,
+  "syscall": "listen",
+  "address": "127.0.0.1",
+  "port": 5555
+}
+[ExtensionServer] HTTP Server error: {
+  "code": "EADDRINUSE",
+  "errno": -98,
+  "syscall": "listen",
+  "address": "127.0.0.1",
+  "port": 5555
+}
+[ExtensionServer] ❌ ERROR: Port 5555 is already in use!
+[ExtensionServer] Please stop other running instances or zombie processes:
+[ExtensionServer] Run: lsof -ti:5555 | xargs kill -9
+[ozon-mcp] Fatal error: Error: listen EADDRINUSE: address already in use 127.0.0.1:5555
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at node:net:2206:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 5555
+}
+[ozon-mcp] Starting Ozon MCP Server...
+[ozon-mcp] Version: 1.0.0
+[ozon-mcp] Port: 5555
+[FileLogger] Logging enabled - writing to: /home/stfu/.local/state/blueprint-mcp/mcp-debug.log
+[ozon-mcp] Debug mode enabled
+[ExtensionServer] WebSocketServer error: {
+  "code": "EADDRINUSE",
+  "errno": -98,
+  "syscall": "listen",
+  "address": "127.0.0.1",
+  "port": 5555
+}
+[ExtensionServer] HTTP Server error: {
+  "code": "EADDRINUSE",
+  "errno": -98,
+  "syscall": "listen",
+  "address": "127.0.0.1",
+  "port": 5555
+}
+[ExtensionServer] ❌ ERROR: Port 5555 is already in use!
+[ExtensionServer] Please stop other running instances or zombie processes:
+[ExtensionServer] Run: lsof -ti:5555 | xargs kill -9
+[ozon-mcp] Fatal error: Error: listen EADDRINUSE: address already in use 127.0.0.1:5555
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at node:net:2206:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 5555
+}
+[ozon-mcp] Starting Ozon MCP Server...
+[ozon-mcp] Version: 1.0.0
+[ozon-mcp] Port: 5555
+[FileLogger] Logging enabled - writing to: /home/stfu/.local/state/blueprint-mcp/mcp-debug.log
+[ozon-mcp] Debug mode enabled
+[ExtensionServer] WebSocketServer error: {
+  "code": "EADDRINUSE",
+  "errno": -98,
+  "syscall": "listen",
+  "address": "127.0.0.1",
+  "port": 5555
+}
+[ExtensionServer] HTTP Server error: {
+  "code": "EADDRINUSE",
+  "errno": -98,
+  "syscall": "listen",
+  "address": "127.0.0.1",
+  "port": 5555
+}
+[ExtensionServer] ❌ ERROR: Port 5555 is already in use!
+[ExtensionServer] Please stop other running instances or zombie processes:
+[ExtensionServer] Run: lsof -ti:5555 | xargs kill -9
+[ozon-mcp] Fatal error: Error: listen EADDRINUSE: address already in use 127.0.0.1:5555
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at node:net:2206:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 5555
+}
+[ozon-mcp] Starting Ozon MCP Server...
+[ozon-mcp] Version: 1.0.0
+[ozon-mcp] Port: 5555
+[FileLogger] Logging enabled - writing to: /home/stfu/.local/state/blueprint-mcp/mcp-debug.log
+[ozon-mcp] Debug mode enabled
+[ExtensionServer] WebSocketServer error: {
+  "code": "EADDRINUSE",
+  "errno": -98,
+  "syscall": "listen",
+  "address": "127.0.0.1",
+  "port": 5555
+}
+[ExtensionServer] HTTP Server error: {
+  "code": "EADDRINUSE",
+  "errno": -98,
+  "syscall": "listen",
+  "address": "127.0.0.1",
+  "port": 5555
+}
+[ExtensionServer] ❌ ERROR: Port 5555 is already in use!
+[ExtensionServer] Please stop other running instances or zombie processes:
+[ExtensionServer] Run: lsof -ti:5555 | xargs kill -9
+[ozon-mcp] Fatal error: Error: listen EADDRINUSE: address already in use 127.0.0.1:5555
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at node:net:2206:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 5555
+}

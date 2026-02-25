@@ -32,6 +32,8 @@ pub const OZON_TOOL_NAMES: [&str; 4] = [
     "ozon_parse_product_page",
     "ozon_cart_action",
     "ozon_get_share_link",
+    // NOTE: ozon_apply_filter disabled - requires complex React event simulation
+    // See handle_apply_filter in ozon_handler.rs for implementation details
 ];
 
 pub const ALL_TOOL_NAMES: [&str; 17] = [
@@ -52,6 +54,9 @@ pub const ALL_TOOL_NAMES: [&str; 17] = [
     "ozon_parse_product_page",
     "ozon_cart_action",
     "ozon_get_share_link",
+    // NOTE: ozon_apply_filter disabled - Ozon uses complex React components with virtual scrolling
+    // URL manipulation doesn't work due to session validation
+    // Requires proper React event simulation (dispatchEvent + state management)
 ];
 
 pub const BROWSER_TOOLS: [ToolCatalogEntry; 13] = [
@@ -143,6 +148,12 @@ pub const OZON_TOOLS: [ToolCatalogEntry; 4] = [
         description: "Return canonical share link for product",
         domain: ToolDomain::Ozon,
     },
+    // DISABLED: ozon_apply_filter
+    // Reason: Ozon uses React with virtual scrolling and complex event handling
+    // URL manipulation fails due to session validation
+    // Implementation requires: proper React event dispatch, state synchronization,
+    // virtual list scrolling to load brands, and checkbox state management
+    // See attempted implementation in git history
 ];
 
 pub fn all_tools() -> Vec<ToolCatalogEntry> {
@@ -169,13 +180,16 @@ mod tests {
     #[test]
     fn tool_catalog_includes_full_iteration_one_surface() {
         assert_eq!(BROWSER_TOOL_NAMES.len(), 13);
-        assert_eq!(OZON_TOOL_NAMES.len(), 4);
-        assert_eq!(ALL_TOOL_NAMES.len(), 17);
+        assert_eq!(OZON_TOOL_NAMES.len(), 4); // Disabled: ozon_apply_filter (see OZON_TOOLS comments)
+        assert_eq!(ALL_TOOL_NAMES.len(), 17); // Disabled: ozon_apply_filter
 
         let names: BTreeSet<&str> = ALL_TOOL_NAMES.into_iter().collect();
         assert!(names.contains("browser_tabs"));
         assert!(names.contains("browser_extract_content"));
         assert!(names.contains("ozon_search_and_parse"));
         assert!(names.contains("ozon_get_share_link"));
+        // DISABLED: assert!(names.contains("ozon_apply_filter"));
+        // Reason: Ozon filter interface uses React with virtual scrolling
+        // and session-validated URLs. Requires complex event simulation.
     }
 }
