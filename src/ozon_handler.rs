@@ -160,6 +160,47 @@ impl OzonHandler {
             .cloned()
             .unwrap_or_default();
 
+        // Priority 1: Check active tab first if it's an Ozon page
+        let active_candidate = tabs.iter().find_map(|tab| {
+            let automatable = tab
+                .get("automatable")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if !automatable {
+                return None;
+            }
+            let active = tab
+                .get("active")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if !active {
+                return None;
+            }
+            let url = tab.get("url").and_then(Value::as_str).unwrap_or("");
+            let index = tab.get("index").and_then(Value::as_i64)?;
+            if Self::is_ozon_url(url) {
+                Some(index)
+            } else {
+                None
+            }
+        });
+
+        if let Some(index) = active_candidate {
+            self.browser_call(
+                transport,
+                "browser_tabs",
+                json!({
+                    "action": "attach",
+                    "index": index,
+                    "activate": false,
+                    "stealth": true,
+                }),
+            )
+            .await?;
+            return Ok(());
+        }
+
+        // Priority 2: Fallback to any automatable Ozon tab
         let mut candidate: Option<i64> = None;
         for tab in &tabs {
             let automatable = tab
@@ -288,7 +329,11 @@ impl OzonHandler {
 
         // Capture current URL before search to detect navigation
         let pre_search_url = self
-            .browser_call(transport, "browser_evaluate", json!({"expression": "window.location.href", "raw_result": false}))
+            .browser_call(
+                transport,
+                "browser_evaluate",
+                json!({"expression": "window.location.href", "raw_result": false}),
+            )
             .await?
             .get("result")
             .and_then(Value::as_str)
@@ -319,7 +364,11 @@ impl OzonHandler {
             let start = SystemTime::now();
             loop {
                 let current_url = self
-                    .browser_call(transport, "browser_evaluate", json!({"expression": "window.location.href", "raw_result": false}))
+                    .browser_call(
+                        transport,
+                        "browser_evaluate",
+                        json!({"expression": "window.location.href", "raw_result": false}),
+                    )
                     .await?
                     .get("result")
                     .and_then(Value::as_str)
@@ -329,7 +378,9 @@ impl OzonHandler {
                     break; // URL changed, search results loading
                 }
 
-                if start.elapsed().unwrap_or_else(|_| Duration::from_secs(0)) >= Duration::from_secs(5) {
+                if start.elapsed().unwrap_or_else(|_| Duration::from_secs(0))
+                    >= Duration::from_secs(5)
+                {
                     break; // Timeout, continue anyway
                 }
 
@@ -389,7 +440,7 @@ impl OzonHandler {
             json!({
                 "actions": [
                     {"type": "scroll_by", "x": 0, "y": Self::pseudo_random_range_ms(300, 800)},
-                    {"type": "wait", "timeout": Self::pseudo_random_range_ms(400, 900)}
+                    {"type": "wait", "timeout": Self::pseudo_random_range_ms(1500, 2500)}
                 ]
             }),
         )
@@ -416,7 +467,7 @@ impl OzonHandler {
 
         self.wait_for_any_selector(
             transport,
-            &[heading, atc_container],
+            &[heading, atc_container, description],
             Duration::from_secs(15),
         )
         .await
@@ -513,7 +564,7 @@ impl OzonHandler {
             .selector("header.cart.icon")
             .unwrap_or("a[href='/cart']");
 
-        let quantity_before_expr = 
+        let quantity_before_expr =
             "(() => {\n\
                 // Try to find the cart container (cartSplit or webAddToCart)\n\
                 const container = document.querySelector(\"[data-widget='cartSplit']\") || document.querySelector(\"[data-widget='webAddToCart']\");\n\

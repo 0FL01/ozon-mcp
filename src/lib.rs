@@ -3,6 +3,7 @@ pub mod browser_handler;
 pub mod config;
 pub mod extension_server;
 pub mod file_logger;
+pub mod ownership_arbiter;
 pub mod ozon_handler;
 pub mod tool_catalog;
 pub mod tool_result;

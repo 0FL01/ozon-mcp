@@ -104,13 +104,17 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
                 // Support both tabId (Chrome tab ID, e.g. 508892864) and index (tab position, e.g. 0, 1)
                 let tab_index = if let Some(id) = int_arg(args, "tabId") {
                     // tabId provided - resolve to tabIndex
-                    self.tab_index_by_id(Some(id)).await?.as_i64()
+                    self.tab_index_by_id(Some(id))
+                        .await?
+                        .as_i64()
                         .ok_or_else(|| anyhow!("tabId {id} not found in open tabs"))?
                 } else if let Some(idx) = int_arg(args, "index") {
                     // index provided directly
                     idx
                 } else {
-                    bail!("either 'index' (tab position) or 'tabId' (Chrome tab ID) is required for action=attach")
+                    bail!(
+                        "either 'index' (tab position) or 'tabId' (Chrome tab ID) is required for action=attach"
+                    )
                 };
 
                 let payload = self
@@ -1278,6 +1282,10 @@ pub fn input_schema_for_tool(name: &str) -> Value {
             "required": ["action"],
         }),
         "ozon_get_share_link" => json!({
+            "type": "object",
+            "properties": {},
+        }),
+        "ozon_ownership_status" => json!({
             "type": "object",
             "properties": {},
         }),
