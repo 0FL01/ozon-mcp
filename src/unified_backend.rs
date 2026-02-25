@@ -73,16 +73,23 @@ impl<T: Transport> UnifiedBackend<T> {
 
 impl<T: Transport + Send + Sync + 'static> ServerHandler for UnifiedBackend<T> {
     fn get_info(&self) -> ServerInfo {
-        let mut info = ServerInfo::default();
-        info.server_info.name = String::from("ozon-mcp");
-        info.server_info.description = Some(String::from(
-            "Rust MCP server for Ozon browser automation via Chrome extension bridge.",
-        ));
-        info.capabilities = ServerCapabilities::builder().enable_tools().build();
-        info.instructions = Some(String::from(
-            "Connect the Chrome extension before using browser_* tools.",
-        ));
-        info
+        ServerInfo {
+            protocol_version: rmcp::model::ProtocolVersion::V_2024_11_05,
+            capabilities: ServerCapabilities::builder().enable_tools().build(),
+            server_info: rmcp::model::Implementation {
+                name: String::from("ozon-mcp"),
+                version: String::from(env!("CARGO_PKG_VERSION")),
+                title: Some(String::from("Ozon MCP Server")),
+                description: Some(String::from(
+                    "Rust MCP server for Ozon browser automation via Chrome extension bridge.",
+                )),
+                icons: None,
+                website_url: None,
+            },
+            instructions: Some(String::from(
+                "Connect Chrome extension before using browser_* tools.",
+            )),
+        }
     }
 
     async fn list_tools(

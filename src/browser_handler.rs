@@ -55,7 +55,7 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
 
         match action {
             "list" => {
-                let payload = self.send_cdp("Target.getTargets", json!({})).await?;
+                let payload = self.send_command("getTabs", json!({})).await?;
                 if raw_result {
                     return Ok(payload);
                 }
@@ -73,11 +73,10 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
                 }))
             }
             "new" => {
-                let url = string_arg(args, "url")
-                    .ok_or_else(|| anyhow!("url is required for action=new"))?;
+                let url = string_arg(args, "url").unwrap_or("about:blank");
                 let payload = self
-                    .send_cdp(
-                        "Target.createTarget",
+                    .send_command(
+                        "createTab",
                         json!({
                             "url": url,
                             "activate": bool_arg(args, "activate", true),
@@ -90,10 +89,15 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
                     return Ok(payload);
                 }
 
+                let tab = payload.get("tab").cloned().unwrap_or(Value::Null);
+                let tab_id = tab.get("id").and_then(value_as_i64);
+                let tab_index = self.tab_index_by_id(tab_id).await?;
+
                 Ok(json!({
                     "action": "new",
                     "success": true,
-                    "tab": payload.get("tab").cloned().unwrap_or(Value::Null),
+                    "tab": tab,
+                    "index": tab_index,
                 }))
             }
             "attach" => {
@@ -101,10 +105,10 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
                     .ok_or_else(|| anyhow!("index is required for action=attach"))?;
 
                 let payload = self
-                    .send_cdp(
-                        "Target.attachToTarget",
+                    .send_command(
+                        "selectTab",
                         json!({
-                            "targetId": index,
+                            "tabIndex": index,
                             "activate": bool_arg(args, "activate", false),
                             "stealth": bool_arg(args, "stealth", false),
                         }),
@@ -122,17 +126,12 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
                 }))
             }
             "close" => {
-                let index = int_arg(args, "index")
-                    .ok_or_else(|| anyhow!("index is required for action=close"))?;
-
-                let payload = self
-                    .send_cdp(
-                        "Target.closeTarget",
-                        json!({
-                            "targetId": index,
-                        }),
-                    )
-                    .await?;
+                let index = int_arg(args, "index");
+                let mut params = json!({});
+                if let Some(index) = index {
+                    params["index"] = json!(index);
+                }
+                let payload = self.send_command("closeTab", params).await?;
 
                 if raw_result {
                     return Ok(payload);
@@ -142,10 +141,35 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
                     "action": "close",
                     "success": payload.get("success").and_then(Value::as_bool).unwrap_or(true),
                     "closed_index": index,
+                    "closed_attached_tab": payload
+                        .get("closedAttachedTab")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
                 }))
             }
             _ => bail!("unknown browser_tabs action: {action}"),
         }
+    }
+
+    async fn tab_index_by_id(&self, tab_id: Option<i64>) -> Result<Value> {
+        let Some(tab_id) = tab_id else {
+            return Ok(Value::Null);
+        };
+
+        let tabs_payload = self.send_command("getTabs", json!({})).await?;
+        let tabs = tabs_payload
+            .get("tabs")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        let index = tabs
+            .iter()
+            .find(|tab| tab.get("id").and_then(value_as_i64) == Some(tab_id))
+            .and_then(|tab| tab.get("index").and_then(Value::as_i64))
+            .map_or(Value::Null, Value::from);
+
+        Ok(index)
     }
 
     async fn handle_navigate(&self, args: &Value, raw_result: bool) -> Result<Value> {
@@ -863,6 +887,10 @@ fn string_arg<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
 
 fn int_arg(args: &Value, key: &str) -> Option<i64> {
     let raw = args.get(key)?;
+    value_as_i64(raw).or_else(|| raw.as_str()?.parse::<i64>().ok())
+}
+
+fn value_as_i64(raw: &Value) -> Option<i64> {
     if let Some(value) = raw.as_i64() {
         return Some(value);
     }
@@ -871,7 +899,7 @@ fn int_arg(args: &Value, key: &str) -> Option<i64> {
         return i64::try_from(value).ok();
     }
 
-    raw.as_str()?.parse::<i64>().ok()
+    None
 }
 
 fn positive_i64_arg(args: &Value, key: &str) -> Option<i64> {
@@ -1065,31 +1093,7 @@ pub fn input_schema_for_tool(name: &str) -> Value {
                     "if": {
                         "properties": {
                             "action": {
-                                "const": "new"
-                            }
-                        }
-                    },
-                    "then": {
-                        "required": ["url"]
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "action": {
                                 "const": "attach"
-                            }
-                        }
-                    },
-                    "then": {
-                        "required": ["index"]
-                    }
-                },
-                {
-                    "if": {
-                        "properties": {
-                            "action": {
-                                "const": "close"
                             }
                         }
                     },
