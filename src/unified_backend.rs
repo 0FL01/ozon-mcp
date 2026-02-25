@@ -1,4 +1,4 @@
-use crate::extension_server::ExtensionCommand;
+use crate::browser_handler::{BrowserHandler, input_schema_for_tool};
 use crate::ozon_handler::OzonHandler;
 use crate::tool_catalog::{ToolCatalogEntry, all_tools, is_browser_tool, is_ozon_tool};
 use crate::tool_result::ToolCallResult;
@@ -10,7 +10,7 @@ use rmcp::model::{
     ServerCapabilities, ServerInfo, Tool,
 };
 use rmcp::service::{RequestContext, RoleServer};
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::sync::Arc;
 
 pub struct UnifiedBackend<T: Transport> {
@@ -38,10 +38,7 @@ impl<T: Transport> UnifiedBackend<T> {
         Tool::new(
             entry.name,
             entry.description,
-            Arc::new(rmcp::model::object(json!({
-                "type": "object",
-                "properties": {},
-            }))),
+            Arc::new(rmcp::model::object(input_schema_for_tool(entry.name))),
         )
     }
 
@@ -65,26 +62,9 @@ impl<T: Transport> UnifiedBackend<T> {
     }
 
     async fn handle_browser_tool(&self, name: &str, args: Value) -> Result<ToolCallResult> {
-        let command = ExtensionCommand::new(
-            "migration/not_implemented",
-            json!({
-                "tool": name,
-                "args": args,
-            }),
-        );
-
-        let response = self.transport.send_command(command).await?;
-
-        Ok(ToolCallResult {
-            payload: json!({
-                "status": "stub",
-                "tool": name,
-                "bridgeMethod": response.request_method,
-                "bridgePayload": response.payload,
-                "message": "Browser tool is not implemented in Rust iteration 1."
-            }),
-            is_error: false,
-        })
+        BrowserHandler::new(&self.transport)
+            .handle_tool(name, args)
+            .await
     }
 }
 

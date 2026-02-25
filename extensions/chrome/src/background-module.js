@@ -432,12 +432,19 @@ console.log('[Background] ✅ tabs.onUpdated listener registered at TOP LEVEL!')
   }
 
   // Handle CDP commands from MCP server
+  const bootstrapAllowedMethods = new Set([
+    'Target.getTargets',
+    'Target.attachToTarget',
+    'Target.createTarget',
+    'Target.closeTarget'
+  ]);
+
   async function handleCDPCommand(cdpMethod, cdpParams) {
     const attachedTabId = tabHandlers.getAttachedTabId();
 
     logger.log(`[Background] handleCDPCommand called: ${cdpMethod} tab: ${attachedTabId}`);
 
-    if (!attachedTabId && cdpMethod !== 'Target.getTargets') {
+    if (!attachedTabId && !bootstrapAllowedMethods.has(cdpMethod)) {
       throw new Error('No tab attached. Call selectTab or createTab first.');
     }
 
@@ -446,13 +453,21 @@ console.log('[Background] ✅ tabs.onUpdated listener registered at TOP LEVEL!')
         return await tabHandlers.getTabs();
 
       case 'Target.attachToTarget': {
-        const tabId = cdpParams.targetId;
-        return await tabHandlers.selectTab(parseInt(tabId));
+        const tabIndex = Number.parseInt(cdpParams.targetId, 10);
+        return await tabHandlers.selectTab({
+          tabIndex: tabIndex,
+          activate: cdpParams.activate,
+          stealth: cdpParams.stealth
+        });
       }
 
       case 'Target.createTarget': {
         const url = cdpParams.url || 'about:blank';
-        return await tabHandlers.createTab(url);
+        return await tabHandlers.createTab({
+          url: url,
+          activate: cdpParams.activate,
+          stealth: cdpParams.stealth
+        });
       }
 
       case 'Target.closeTarget': {

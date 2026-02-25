@@ -1,4 +1,5 @@
 pub mod app;
+pub mod browser_handler;
 pub mod config;
 pub mod extension_server;
 pub mod file_logger;
