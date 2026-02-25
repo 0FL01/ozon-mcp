@@ -101,14 +101,23 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
                 }))
             }
             "attach" => {
-                let index = int_arg(args, "index")
-                    .ok_or_else(|| anyhow!("index is required for action=attach"))?;
+                // Support both tabId (Chrome tab ID, e.g. 508892864) and index (tab position, e.g. 0, 1)
+                let tab_index = if let Some(id) = int_arg(args, "tabId") {
+                    // tabId provided - resolve to tabIndex
+                    self.tab_index_by_id(Some(id)).await?.as_i64()
+                        .ok_or_else(|| anyhow!("tabId {id} not found in open tabs"))?
+                } else if let Some(idx) = int_arg(args, "index") {
+                    // index provided directly
+                    idx
+                } else {
+                    bail!("either 'index' (tab position) or 'tabId' (Chrome tab ID) is required for action=attach")
+                };
 
                 let payload = self
                     .send_command(
                         "selectTab",
                         json!({
-                            "tabIndex": index,
+                            "tabIndex": tab_index,
                             "activate": bool_arg(args, "activate", false),
                             "stealth": bool_arg(args, "stealth", false),
                         }),
@@ -123,6 +132,7 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
                     "action": "attach",
                     "success": true,
                     "tab": payload.get("tab").cloned().unwrap_or(Value::Null),
+                    "attached_index": tab_index,
                 }))
             }
             "close" => {
@@ -1070,21 +1080,31 @@ pub fn input_schema_for_tool(name: &str) -> Value {
                 "action": {
                     "type": "string",
                     "enum": ["list", "new", "attach", "close"],
+                    "description": "list: show all tabs, new: create tab, attach: select tab for automation, close: close tab"
                 },
                 "url": {
                     "type": "string",
+                    "description": "URL for 'new' action. Optional, defaults to about:blank"
                 },
                 "index": {
                     "type": "number",
+                    "description": "Tab position index (0-based) for attach/close. Use this OR tabId"
+                },
+                "tabId": {
+                    "type": "number",
+                    "description": "Chrome tab ID (from list) for attach. Use this OR index. Preferred when you have the tab object from list"
                 },
                 "activate": {
                     "type": "boolean",
+                    "description": "Whether to focus the tab (bring to front)"
                 },
                 "stealth": {
                     "type": "boolean",
+                    "description": "Enable stealth mode to hide automation"
                 },
                 "raw_result": {
                     "type": "boolean",
+                    "description": "Return raw extension response"
                 }
             },
             "required": ["action"],
@@ -1098,7 +1118,10 @@ pub fn input_schema_for_tool(name: &str) -> Value {
                         }
                     },
                     "then": {
-                        "required": ["index"]
+                        "anyOf": [
+                            {"required": ["index"]},
+                            {"required": ["tabId"]}
+                        ]
                     }
                 }
             ]
