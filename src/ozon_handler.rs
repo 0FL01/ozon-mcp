@@ -509,104 +509,84 @@ impl OzonHandler {
 
         self.ensure_attached(transport).await?;
 
-        let atc_container = self
-            .selector("product.addToCart.container")
-            .unwrap_or("[data-widget='webAddToCart']");
-        let button = self
-            .selector("product.addToCart.button")
-            .unwrap_or("[data-widget='webAddToCart'] button:first-of-type");
-        let inc = self
-            .selector("product.addToCart.increment")
-            .unwrap_or("[data-widget='webAddToCart'] button:nth-of-type(3)");
-        let dec = self
-            .selector("product.addToCart.decrement")
-            .unwrap_or("[data-widget='webAddToCart'] button:nth-of-type(2)");
-        let qty_sel = self
-            .selector("product.addToCart.quantity")
-            .unwrap_or("[data-widget='webAddToCart'] span");
         let cart_icon = self
             .selector("header.cart.icon")
             .unwrap_or("a[href='/cart']");
 
-        let qty_js = Self::js_string(qty_sel)?;
+        let quantity_before_expr = 
+            "(() => {\n\
+                // Try to find the cart container (cartSplit or webAddToCart)\n\
+                const container = document.querySelector(\"[data-widget='cartSplit']\") || document.querySelector(\"[data-widget='webAddToCart']\");\n\
+                if (!container) return 0;\n\
+                \n\
+                // Try to find input element with quantity value\n\
+                const inputEl = container.querySelector(\"input\");\n\
+                if (inputEl) {\n\
+                    const val = parseInt(inputEl.value, 10);\n\
+                    if (Number.isFinite(val) && val > 0) return val;\n\
+                }\n\
+                \n\
+                // Fallback: search for any element containing a number (for legacy support)\n\
+                const allElements = container.querySelectorAll(\"*\");\n\
+                for (const el of allElements) {\n\
+                    const text = (el.innerText || el.textContent || \"\").trim();\n\
+                    if (/^\\d+$/.test(text)) {\n\
+                        const n = parseInt(text, 10);\n\
+                        if (Number.isFinite(n) && n > 0) return n;\n\
+                    }\n\
+                }\n\
+                return 0;\n\
+            })()".to_string();
         let quantity_before = self
-            .eval_value(
-                transport,
-                &format!(
-                    "(() => {{ const el = document.querySelector({qty_js}); if (!el) return 0; const t=(el.innerText||'').replace(/\\s+/g,' ').trim(); const n=parseInt(t,10); return Number.isFinite(n)?n:0; }})()"
-                ),
-            )
+            .eval_value(transport, &quantity_before_expr)
             .await?
             .as_i64()
             .unwrap_or(0);
 
         self.random_wait(300, 800).await;
 
-        // Decide which control to click.
-        let desired_selector = match action {
+        // Decide which button to click by index (0=add, 1=decrement, 2=increment)
+        // Note: :nth-of-type doesn't work reliably with nested structures, use querySelectorAll
+        let button_index: usize = match action {
             "add" => {
                 if quantity_before <= 0 {
-                    button
+                    0
                 } else {
-                    inc
+                    2 // increment if already in cart
                 }
             }
             "increment" => {
                 if quantity_before <= 0 {
-                    button
+                    0
                 } else {
-                    inc
+                    2
                 }
             }
-            "decrement" => dec,
-            _ => button,
+            "decrement" => 1,
+            _ => 0,
         };
 
-        // Try real click first; fallback to DOM click within container (nth-of-type can be flaky).
-        let click_result = self
-            .browser_call(
+        // Use JS querySelectorAll which is more reliable than :nth-of-type
+        let clicked = self
+            .eval_value(
                 transport,
-                "browser_interact",
-                json!({
-                    "actions": [
-                        {"type": "click", "selector": desired_selector},
-                    ]
-                }),
+                &format!(
+                    "(() => {{\n  const c = document.querySelector(\"[data-widget='cartSplit']\") || document.querySelector(\"[data-widget='webAddToCart']\");\n  if (!c) return false;\n  const btns = c.querySelectorAll('button');\n  const b = btns[{button_index}];\n  if (!b) return false;\n  b.click();\n  return true;\n}})()"
+                ),
             )
-            .await;
+            .await?
+            .as_bool()
+            .unwrap_or(false);
 
-        if click_result.is_err() {
-            let container_js = Self::js_string(atc_container)?;
-            let button_index = match desired_selector {
-                s if s == button => 0,
-                s if s == dec => 1,
-                _ => 2,
-            };
-            let clicked = self
-                .eval_value(
-                    transport,
-                    &format!(
-                        "(() => {{\n  const c = document.querySelector({container_js});\n  if (!c) return false;\n  const btns = c.querySelectorAll('button');\n  const b = btns[{button_index}];\n  if (!b) return false;\n  b.click();\n  return true;\n}})()"
-                    ),
-                )
-                .await?
-                .as_bool()
-                .unwrap_or(false);
-
-            if !clicked {
-                bail!("cart control not found (container/buttons)");
-            }
+        if !clicked {
+            bail!("cart control not found (container/buttons)");
         }
 
         self.random_wait(1000, 2500).await;
 
+        // Reuse the same expression for quantity_after
         let quantity_after = self
-            .eval_value(
-                transport,
-                &format!(
-                    "(() => {{ const el = document.querySelector({qty_js}); if (!el) return 0; const t=(el.innerText||'').replace(/\\s+/g,' ').trim(); const n=parseInt(t,10); return Number.isFinite(n)?n:0; }})()"
-                ),
-            )
+            .eval_value(transport, &quantity_before_expr)
             .await?
             .as_i64()
             .unwrap_or(0);

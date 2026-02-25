@@ -11,27 +11,19 @@ pub struct ToolCatalogEntry {
     pub domain: ToolDomain,
 }
 
-pub const BROWSER_TOOL_NAMES: [&str; 21] = [
+pub const BROWSER_TOOL_NAMES: [&str; 13] = [
     "browser_tabs",
     "browser_navigate",
     "browser_interact",
     "browser_snapshot",
     "browser_lookup",
-    "browser_get_element_styles",
     "browser_take_screenshot",
     "browser_evaluate",
     "browser_console_messages",
     "browser_fill_form",
-    "browser_drag",
     "browser_window",
-    "browser_verify_text_visible",
-    "browser_verify_element_visible",
     "browser_network_requests",
-    "browser_pdf_save",
     "browser_handle_dialog",
-    "browser_list_extensions",
-    "browser_reload_extensions",
-    "browser_performance_metrics",
     "browser_extract_content",
 ];
 
@@ -42,27 +34,19 @@ pub const OZON_TOOL_NAMES: [&str; 4] = [
     "ozon_get_share_link",
 ];
 
-pub const ALL_TOOL_NAMES: [&str; 25] = [
+pub const ALL_TOOL_NAMES: [&str; 17] = [
     "browser_tabs",
     "browser_navigate",
     "browser_interact",
     "browser_snapshot",
     "browser_lookup",
-    "browser_get_element_styles",
     "browser_take_screenshot",
     "browser_evaluate",
     "browser_console_messages",
     "browser_fill_form",
-    "browser_drag",
     "browser_window",
-    "browser_verify_text_visible",
-    "browser_verify_element_visible",
     "browser_network_requests",
-    "browser_pdf_save",
     "browser_handle_dialog",
-    "browser_list_extensions",
-    "browser_reload_extensions",
-    "browser_performance_metrics",
     "browser_extract_content",
     "ozon_search_and_parse",
     "ozon_parse_product_page",
@@ -70,7 +54,7 @@ pub const ALL_TOOL_NAMES: [&str; 25] = [
     "ozon_get_share_link",
 ];
 
-pub const BROWSER_TOOLS: [ToolCatalogEntry; 21] = [
+pub const BROWSER_TOOLS: [ToolCatalogEntry; 13] = [
     ToolCatalogEntry {
         name: "browser_tabs",
         description: "Manage browser tabs",
@@ -97,11 +81,6 @@ pub const BROWSER_TOOLS: [ToolCatalogEntry; 21] = [
         domain: ToolDomain::Browser,
     },
     ToolCatalogEntry {
-        name: "browser_get_element_styles",
-        description: "Read computed element styles",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
         name: "browser_take_screenshot",
         description: "Capture screenshot from active tab",
         domain: ToolDomain::Browser,
@@ -122,23 +101,8 @@ pub const BROWSER_TOOLS: [ToolCatalogEntry; 21] = [
         domain: ToolDomain::Browser,
     },
     ToolCatalogEntry {
-        name: "browser_drag",
-        description: "Perform drag and drop",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
         name: "browser_window",
         description: "Control browser window state",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
-        name: "browser_verify_text_visible",
-        description: "Verify text is visible on page",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
-        name: "browser_verify_element_visible",
-        description: "Verify element is visible on page",
         domain: ToolDomain::Browser,
     },
     ToolCatalogEntry {
@@ -147,28 +111,8 @@ pub const BROWSER_TOOLS: [ToolCatalogEntry; 21] = [
         domain: ToolDomain::Browser,
     },
     ToolCatalogEntry {
-        name: "browser_pdf_save",
-        description: "Save current page as PDF",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
         name: "browser_handle_dialog",
         description: "Accept or dismiss active dialog",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
-        name: "browser_list_extensions",
-        description: "List installed browser extensions",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
-        name: "browser_reload_extensions",
-        description: "Reload browser extensions",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
-        name: "browser_performance_metrics",
-        description: "Read browser performance metrics",
         domain: ToolDomain::Browser,
     },
     ToolCatalogEntry {
@@ -224,9 +168,9 @@ mod tests {
 
     #[test]
     fn tool_catalog_includes_full_iteration_one_surface() {
-        assert_eq!(BROWSER_TOOL_NAMES.len(), 21);
+        assert_eq!(BROWSER_TOOL_NAMES.len(), 13);
         assert_eq!(OZON_TOOL_NAMES.len(), 4);
-        assert_eq!(ALL_TOOL_NAMES.len(), 25);
+        assert_eq!(ALL_TOOL_NAMES.len(), 17);
 
         let names: BTreeSet<&str> = ALL_TOOL_NAMES.into_iter().collect();
         assert!(names.contains("browser_tabs"));
