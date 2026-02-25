@@ -3,7 +3,9 @@ use crate::extension_server::{ExtensionServer, ExtensionServerConfig};
 use crate::file_logger::FileLogger;
 use crate::transport::DirectTransport;
 use crate::unified_backend::UnifiedBackend;
-use anyhow::Result;
+use anyhow::{Context, Result};
+use rmcp::ServiceExt;
+use rmcp::transport::stdio;
 use std::sync::Arc;
 
 pub struct App {
@@ -34,34 +36,50 @@ impl App {
     }
 
     pub async fn run(self) -> Result<()> {
-        self.logger
-            .info("Starting Ozon MCP Rust scaffold (iteration 2).");
+        let App {
+            config,
+            logger,
+            extension_server,
+            backend,
+        } = self;
 
-        if let Some(addr) = self.config.socket_addr() {
-            self.logger
-                .info(&format!("Configured extension bridge endpoint: {addr}"));
+        logger.info("Starting Ozon MCP Rust scaffold (iteration 2).");
+
+        if let Some(addr) = config.socket_addr() {
+            logger.info(&format!("Configured extension bridge endpoint: {addr}"));
         } else {
-            self.logger.info(&format!(
+            logger.info(&format!(
                 "Configured extension bridge endpoint: {}:{}",
-                self.config.mcp_host, self.config.mcp_port
+                config.mcp_host, config.mcp_port
             ));
         }
 
-        self.logger.debug(&format!(
-            "Selected transport: {}",
-            self.backend.transport_name()
-        ));
+        logger.debug(&format!("Selected transport: {}", backend.transport_name()));
 
-        let tool_count = self.backend.list_tools().len();
-        self.logger
-            .info(&format!("Registered {tool_count} tool descriptors."));
-        self.logger
-            .info("Handlers are intentionally stubs in migration iteration 2.");
+        let tool_count = backend.list_tools().len();
+        logger.info(&format!("Registered {tool_count} tool descriptors."));
+        logger.info("Handlers are intentionally stubs in migration iteration 2.");
 
-        self.extension_server.start().await?;
-        self.extension_server.stop().await?;
+        if let Err(error) = extension_server.start().await {
+            logger.info(&format!(
+                "Extension bridge startup issue: {error}. MCP stdio server will continue running."
+            ));
+        }
 
-        self.logger.info("Rust scaffold startup completed.");
+        let service = backend
+            .serve(stdio())
+            .await
+            .context("failed to start MCP stdio service")?;
+
+        let quit_reason = service
+            .waiting()
+            .await
+            .context("MCP stdio service terminated unexpectedly")?;
+
+        extension_server.stop().await?;
+        logger.debug(&format!("MCP service terminated: {quit_reason:?}"));
+
+        logger.info("Rust scaffold startup completed.");
         Ok(())
     }
 }

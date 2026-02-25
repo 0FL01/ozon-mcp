@@ -4,7 +4,14 @@ use crate::tool_catalog::{ToolCatalogEntry, all_tools, is_browser_tool, is_ozon_
 use crate::tool_result::ToolCallResult;
 use crate::transport::Transport;
 use anyhow::{Result, bail};
+use rmcp::ServerHandler;
+use rmcp::model::{
+    CallToolRequestParams, CallToolResult, Content, ListToolsResult, PaginatedRequestParams,
+    ServerCapabilities, ServerInfo, Tool,
+};
+use rmcp::service::{RequestContext, RoleServer};
 use serde_json::{Value, json};
+use std::sync::Arc;
 
 pub struct UnifiedBackend<T: Transport> {
     transport: T,
@@ -25,6 +32,24 @@ impl<T: Transport> UnifiedBackend<T> {
 
     pub fn transport_name(&self) -> &'static str {
         self.transport.name()
+    }
+
+    fn tool_to_mcp(entry: ToolCatalogEntry) -> Tool {
+        Tool::new(
+            entry.name,
+            entry.description,
+            Arc::new(rmcp::model::object(json!({
+                "type": "object",
+                "properties": {},
+            }))),
+        )
+    }
+
+    fn find_tool(&self, name: &str) -> Option<Tool> {
+        self.list_tools()
+            .into_iter()
+            .find(|entry| entry.name == name)
+            .map(Self::tool_to_mcp)
     }
 
     pub async fn call_tool(&self, name: &str, args: Value) -> Result<ToolCallResult> {
@@ -60,5 +85,61 @@ impl<T: Transport> UnifiedBackend<T> {
             }),
             is_error: false,
         })
+    }
+}
+
+impl<T: Transport + Send + Sync + 'static> ServerHandler for UnifiedBackend<T> {
+    fn get_info(&self) -> ServerInfo {
+        let mut info = ServerInfo::default();
+        info.server_info.name = String::from("ozon-mcp");
+        info.server_info.description = Some(String::from(
+            "Rust MCP server for Ozon browser automation via Chrome extension bridge.",
+        ));
+        info.capabilities = ServerCapabilities::builder().enable_tools().build();
+        info.instructions = Some(String::from(
+            "Connect the Chrome extension before using browser_* tools.",
+        ));
+        info
+    }
+
+    async fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> std::result::Result<ListToolsResult, rmcp::ErrorData> {
+        let tools = UnifiedBackend::list_tools(self)
+            .into_iter()
+            .map(Self::tool_to_mcp)
+            .collect();
+        Ok(ListToolsResult::with_all_items(tools))
+    }
+
+    fn get_tool(&self, name: &str) -> Option<Tool> {
+        self.find_tool(name)
+    }
+
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> std::result::Result<CallToolResult, rmcp::ErrorData> {
+        let name = request.name;
+        let args = request
+            .arguments
+            .map(Value::Object)
+            .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
+
+        match UnifiedBackend::call_tool(self, name.as_ref(), args).await {
+            Ok(result) => {
+                if result.is_error {
+                    Ok(CallToolResult::structured_error(result.payload))
+                } else {
+                    Ok(CallToolResult::structured(result.payload))
+                }
+            }
+            Err(error) => Ok(CallToolResult::error(vec![Content::text(
+                error.to_string(),
+            )])),
+        }
     }
 }
