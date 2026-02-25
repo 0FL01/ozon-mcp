@@ -285,6 +285,15 @@ impl OzonHandler {
         }
 
         self.random_wait(500, 1500).await;
+
+        // Capture current URL before search to detect navigation
+        let pre_search_url = self
+            .browser_call(transport, "browser_evaluate", json!({"expression": "window.location.href", "raw_result": false}))
+            .await?
+            .get("result")
+            .and_then(Value::as_str)
+            .map(String::from);
+
         self.browser_call(
             transport,
             "browser_interact",
@@ -299,6 +308,29 @@ impl OzonHandler {
             }),
         )
         .await?;
+
+        // Wait for URL to change (indicates search started) if we were already on a search page
+        if pre_search_url.is_some() {
+            let start = SystemTime::now();
+            loop {
+                let current_url = self
+                    .browser_call(transport, "browser_evaluate", json!({"expression": "window.location.href", "raw_result": false}))
+                    .await?
+                    .get("result")
+                    .and_then(Value::as_str)
+                    .map(String::from);
+
+                if current_url != pre_search_url {
+                    break; // URL changed, search results loading
+                }
+
+                if start.elapsed().unwrap_or_else(|_| Duration::from_secs(0)) >= Duration::from_secs(5) {
+                    break; // Timeout, continue anyway
+                }
+
+                sleep(Duration::from_millis(200)).await;
+            }
+        }
 
         self.wait_for_any_selector(
             transport,
