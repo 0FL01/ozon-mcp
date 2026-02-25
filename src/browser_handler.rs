@@ -1223,6 +1223,37 @@ pub fn input_schema_for_tool(name: &str) -> Value {
                 }
             }
         }),
+        "ozon_search_and_parse" => json!({
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "minLength": 1,
+                }
+            },
+            "required": ["query"],
+        }),
+        "ozon_parse_product_page" => json!({
+            "type": "object",
+            "properties": {},
+        }),
+        "ozon_cart_action" => json!({
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["add", "increment", "decrement"],
+                },
+                "quantity": {
+                    "type": "number",
+                }
+            },
+            "required": ["action"],
+        }),
+        "ozon_get_share_link" => json!({
+            "type": "object",
+            "properties": {},
+        }),
         _ => json!({
             "type": "object",
             "properties": {},

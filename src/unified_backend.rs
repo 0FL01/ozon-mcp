@@ -51,7 +51,10 @@ impl<T: Transport> UnifiedBackend<T> {
 
     pub async fn call_tool(&self, name: &str, args: Value) -> Result<ToolCallResult> {
         if is_ozon_tool(name) {
-            return self.ozon_handler.handle_tool(name, args).await;
+            return self
+                .ozon_handler
+                .handle_tool(&self.transport, name, args)
+                .await;
         }
 
         if is_browser_tool(name) {
