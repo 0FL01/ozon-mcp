@@ -13,36 +13,73 @@ The default branch is `main`.
 ## 🏗 Project Structure
 
 ```
-src/                         # MCP-сервер (Rust)
-├── main.rs                  # Точка входа Rust-бинарника
-├── lib.rs                   # Экспорт модулей
-├── app.rs                   # Инициализация зависимостей и lifecycle
-├── config.rs                # Конфиг (CLI + env)
-├── extension_server.rs      # WebSocket bridge с extension
-├── transport.rs             # Транспортный слой (DirectTransport)
-├── unified_backend.rs       # Диспетчер MCP-инструментов
-├── ozon_handler.rs          # Ozon-специфичная логика
-├── tool_catalog.rs          # Реестр инструментов browser_* / ozon_*
-├── tool_result.rs           # Модели результатов вызова инструментов
-└── file_logger.rs           # Логирование
+src/                           # MCP-сервер (Rust)
+├── main.rs                    # Точка входа Rust-бинарника
+├── lib.rs                     # Экспорт модулей
+├── app.rs                     # Инициализация зависимостей и lifecycle
+├── config.rs                  # Конфиг (CLI + env)
+├── extension_server.rs        # WebSocket bridge с extension
+├── transport.rs               # Транспортный слой (DirectTransport)
+├── unified_backend.rs         # Диспетчер MCP-инструментов
+├── ozon_handler.rs            # Ozon-специфичная логика
+├── browser_handler.rs         # Браузер-специфичные операции
+├── ownership_arbiter.rs       # Управление exclusive access
+├── tool_catalog.rs            # Реестр инструментов browser_* / ozon_*
+└── file_logger.rs             # Логирование
 
-extensions/chrome/           # Chrome расширение
-├── manifest.json            # Manifest V3
-└── src/
-    ├── background-module.js # Service worker (CDP команды)
-    ├── content-script.js    # Инъекция в страницу
-    └── stealth-inject.js    # Скрытие автоматизации
+extensions/chrome/             # Chrome расширение
+├── manifest.json              # Manifest V3
+├── package.json               # Зависимости npm
+├── src/
+│   ├── background-module.js   # Service worker (CDP команды)
+│   ├── content-script.js      # Инъекция в страницу
+│   └── stealth-inject.js      # Скрытие автоматизации
+├── shared/
+│   ├── adapters/browser.js    # Chrome API adapter
+│   ├── connection/websocket.js # WebSocket клиент
+│   ├── handlers/              # Обработчики CDP событий
+│   │   ├── console.js
+│   │   ├── dialogs.js
+│   │   ├── network.js
+│   │   └── tabs.js
+│   ├── popup/                 # UI popup
+│   │   ├── popup.html
+│   │   ├── popup.js
+│   │   └── popup.css
+│   └── utils/                 # Утилиты
+│       ├── icons.js
+│       ├── jwt.js
+│       ├── logger.js
+│       └── unwrap.js
+├── public/                    # Статические страницы
+│   ├── form-result.html
+│   ├── form-result.js
+│   ├── login-success.html
+│   ├── login-success.js
+│   ├── test-iframes.html
+│   └── test-side-effects.html
+├── icons/                     # Иконки расширения
+├── _locales/                  # Локализации
+└── tests/
+    └── extension.spec.ts
 
-selectors/                   # CSS-селекторы для Ozon
-└── ozon-selectors.json
+selectors/                     # CSS-селекторы для Ozon
+├── ozon-selectors.json
+└── README.md
 
 docs/
-├── RUST_MIGRATION_PLAN.md   # План развития
 └── ANTI_BOT_SOLUTIONS.md
 
-scripts/                     # Скрипты сборки
-└── build_prod.sh            # Сборка standalone бинарника
-dist/                        # Собранный бинарник (ozon-mcp)
+stories/                       # User stories
+├── 01-stable-selectors.md
+├── 02-listing-data-extractor.md
+├── 03-pdp-data-extractor.md
+└── 04-state-monitor.md
+
+scripts/                       # Скрипты сборки
+└── build_prod.sh              # Сборка standalone бинарника
+
+dist/                          # Собранный бинарник (ozon-mcp)
 ```
 
 ### Key Modules
@@ -50,6 +87,8 @@ dist/                        # Собранный бинарник (ozon-mcp)
 - **extension_server.rs**: WebSocket bridge, single active extension connection, request/response correlation
 - **unified_backend.rs**: Точка диспетчеризации MCP-инструментов (browser_* и ozon_*)
 - **ozon_handler.rs**: Ozon-операции (поиск, карточка товара, корзина)
+- **browser_handler.rs**: Браузер-специфичные операции
+- **ownership_arbiter.rs**: Управление exclusive access
 - **tool_catalog.rs**: Единый каталог инструментов для list_tools
 - **background-module.js**: Chrome extension service worker с CDP
 - **content-script.js**: Инъекция в страницу для выполнения скриптов
