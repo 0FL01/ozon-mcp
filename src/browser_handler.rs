@@ -1345,7 +1345,32 @@ pub fn input_schema_for_tool(name: &str) -> Value {
         }),
         "ozon_parse_product_page" => json!({
             "type": "object",
-            "properties": {},
+            "properties": {
+                "open_from_search": {
+                    "type": "boolean",
+                    "description": "If true, open product from search results before parsing"
+                },
+                "strict_open_from_search": {
+                    "type": "boolean",
+                    "description": "Fail if opening product from search did not succeed"
+                },
+                "query": {
+                    "type": "string",
+                    "description": "Search query used to rebuild listing before opening product"
+                },
+                "index": {
+                    "type": "number",
+                    "description": "0-based index of product in search listing"
+                },
+                "selector": {
+                    "type": "string",
+                    "description": "Explicit CSS selector of product link in listing"
+                },
+                "url": {
+                    "type": "string",
+                    "description": "Product URL to locate and open from listing"
+                }
+            },
         }),
         "ozon_cart_action" => json!({
             "type": "object",

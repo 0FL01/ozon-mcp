@@ -38,7 +38,7 @@ impl OzonHandler {
 
         let outcome = match name {
             "ozon_search_and_parse" => self.handle_search_and_parse(transport, &args).await,
-            "ozon_parse_product_page" => self.handle_parse_product_page(transport).await,
+            "ozon_parse_product_page" => self.handle_parse_product_page(transport, &args).await,
             "ozon_cart_action" => self.handle_cart_action(transport, &args).await,
             "ozon_get_share_link" => self.handle_get_share_link(transport).await,
             _ => Err(anyhow!("unknown ozon tool: {name}")),
@@ -277,6 +277,311 @@ impl OzonHandler {
         }
     }
 
+    fn normalized_url_for_match(url: &str) -> String {
+        let mut normalized = match Url::parse(url) {
+            Ok(mut parsed) => {
+                parsed.set_query(None);
+                parsed.set_fragment(None);
+                parsed.to_string()
+            }
+            Err(_) => url.split('?').next().unwrap_or(url).to_string(),
+        };
+
+        while normalized.ends_with('/') {
+            normalized.pop();
+        }
+
+        normalized
+    }
+
+    async fn current_url<T: Transport>(&self, transport: &T) -> Result<Option<String>> {
+        let payload = self
+            .browser_call(
+                transport,
+                "browser_evaluate",
+                json!({
+                    "expression": "window.location.href",
+                    "raw_result": false,
+                }),
+            )
+            .await?;
+
+        Ok(payload
+            .get("result")
+            .and_then(Value::as_str)
+            .map(str::to_string))
+    }
+
+    async fn open_product_from_search_if_requested<T: Transport>(
+        &self,
+        transport: &T,
+        args: &Value,
+    ) -> Result<Option<Value>> {
+        let query = args
+            .get("query")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|v| !v.is_empty());
+        let index = args
+            .get("index")
+            .and_then(Value::as_i64)
+            .filter(|v| *v >= 0);
+        let selector = args
+            .get("selector")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|v| !v.is_empty());
+        let url = args
+            .get("url")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|v| !v.is_empty());
+        let strict_open_from_search = args
+            .get("strict_open_from_search")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
+
+        let open_from_search = args
+            .get("open_from_search")
+            .and_then(Value::as_bool)
+            .unwrap_or(query.is_some() || index.is_some() || selector.is_some() || url.is_some());
+
+        if !open_from_search {
+            return Ok(None);
+        }
+
+        let mut search_items = Vec::new();
+        if let Some(query) = query {
+            let search_payload = self
+                .handle_search_and_parse(transport, &json!({ "query": query }))
+                .await?;
+            search_items = search_payload
+                .get("items")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+        } else {
+            let results_grid = self
+                .selector("search.results.grid")
+                .unwrap_or("[data-widget='tileGridDesktop']");
+            let results_grid_simple = self
+                .selector("search.results.gridSimple")
+                .unwrap_or("[data-widget='skuGridSimple']");
+            let on_search_page = self
+                .wait_for_any_selector(
+                    transport,
+                    &[results_grid, results_grid_simple],
+                    Duration::from_secs(3),
+                )
+                .await;
+            if let Err(error) = on_search_page {
+                if strict_open_from_search {
+                    bail!(
+                        "open_from_search requires a listing page context. Pass query to rebuild search results: {error}"
+                    );
+                }
+                return Ok(Some(json!({
+                    "opened_from_search": false,
+                    "strict": false,
+                    "reason": "not_on_search_page",
+                })));
+            }
+        }
+
+        let mut selected_index = index;
+        let mut selected_selector = selector.map(str::to_string);
+        let mut selected_url = url.map(str::to_string);
+
+        if selected_selector.is_none() {
+            if let Some(index) = selected_index {
+                let item_index = usize::try_from(index).unwrap_or(0);
+                let tile_sel = self
+                    .selector("search.productCard.tile")
+                    .unwrap_or("div.tile-root");
+                let link_sel = self
+                    .selector("search.productCard.link")
+                    .unwrap_or("a.tile-clickable-element");
+                selected_selector = Some(format!(
+                    "{tile_sel}:nth-of-type({}) {link_sel}",
+                    item_index + 1
+                ));
+                if selected_url.is_none() {
+                    selected_url = search_items
+                        .get(item_index)
+                        .and_then(|item| item.get("url"))
+                        .and_then(Value::as_str)
+                        .map(str::to_string);
+                }
+            }
+        }
+
+        if selected_selector.is_none() {
+            if let Some(target_url) = selected_url.as_deref() {
+                let target_norm = Self::normalized_url_for_match(target_url);
+                for item in &search_items {
+                    let item_url = item.get("url").and_then(Value::as_str).unwrap_or("");
+                    if Self::normalized_url_for_match(item_url) == target_norm {
+                        selected_selector = item
+                            .get("selector")
+                            .and_then(Value::as_str)
+                            .map(str::to_string);
+                        if selected_index.is_none() {
+                            selected_index = item.get("index").and_then(Value::as_i64);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        if selected_selector.is_none() && selected_url.is_none() {
+            if let Some(first_item) = search_items.first() {
+                selected_selector = first_item
+                    .get("selector")
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                selected_url = first_item
+                    .get("url")
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                if selected_index.is_none() {
+                    selected_index = first_item.get("index").and_then(Value::as_i64);
+                }
+            }
+        }
+
+        if selected_selector.is_none() && selected_url.is_none() {
+            if strict_open_from_search {
+                bail!(
+                    "open_from_search requested, but no target provided. Pass query+index, selector, or url"
+                );
+            }
+
+            return Ok(Some(json!({
+                "opened_from_search": false,
+                "strict": false,
+                "reason": "missing_target",
+            })));
+        }
+
+        let pre_click_url = self.current_url(transport).await?;
+
+        let mut clicked = false;
+        let mut click_method = "none";
+
+        if let Some(selector) = selected_selector.as_deref() {
+            let click_attempt = self
+                .browser_call(
+                    transport,
+                    "browser_interact",
+                    json!({
+                        "actions": [
+                            {"type": "scroll_into_view", "selector": selector},
+                            {"type": "wait", "timeout": Self::pseudo_random_range_ms(200, 600)},
+                            {"type": "hover", "selector": selector},
+                            {"type": "wait", "timeout": Self::pseudo_random_range_ms(120, 300)},
+                            {"type": "click", "selector": selector}
+                        ]
+                    }),
+                )
+                .await;
+
+            if click_attempt.is_ok() {
+                clicked = true;
+                click_method = "selector";
+            }
+        }
+
+        if !clicked {
+            if let Some(url) = selected_url.as_deref() {
+                let target_url_js = Self::js_string(url)?;
+                let click_by_url = self
+                    .eval_value(
+                        transport,
+                        &format!(
+                            "(() => {{\n  const normalize = (v) => {{\n    try {{\n      const u = new URL(v, window.location.origin);\n      u.search = '';\n      u.hash = '';\n      return u.toString().replace(/\\/+$/, '');\n    }} catch (_error) {{\n      return String(v || '').split('?')[0].replace(/\\/+$/, '');\n    }}\n  }};\n  const target = normalize({target_url_js});\n  const links = Array.from(document.querySelectorAll('a[href]'));\n  const direct = links.find((a) => normalize(a.href) === target);\n  if (!direct) {{\n    return {{ clicked: false, reason: 'link_not_found' }};\n  }}\n  direct.scrollIntoView({{ block: 'center', inline: 'center' }});\n  direct.dispatchEvent(new MouseEvent('mousemove', {{ bubbles: true, view: window }}));\n  direct.click();\n  return {{ clicked: true, href: direct.href }};\n}})()"
+                        ),
+                    )
+                    .await
+                    .unwrap_or(Value::Null);
+
+                if click_by_url
+                    .get("clicked")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+                {
+                    clicked = true;
+                    click_method = "url_match";
+                }
+            }
+        }
+
+        if !clicked {
+            if strict_open_from_search {
+                bail!(
+                    "failed to open product from search results. Pass valid query+index, selector, or url"
+                );
+            }
+
+            return Ok(Some(json!({
+                "opened_from_search": false,
+                "strict": false,
+                "reason": "click_failed",
+                "index": selected_index,
+                "selector": selected_selector,
+                "url": selected_url,
+            })));
+        }
+
+        let start = SystemTime::now();
+        loop {
+            let current_url = self.current_url(transport).await?;
+            if current_url != pre_click_url {
+                break;
+            }
+
+            if start.elapsed().unwrap_or_else(|_| Duration::from_secs(0)) >= Duration::from_secs(8)
+            {
+                break;
+            }
+
+            sleep(Duration::from_millis(200)).await;
+        }
+
+        let heading = self
+            .selector("product.heading")
+            .unwrap_or("[data-widget='webProductHeading']");
+        let description = self
+            .selector("product.description")
+            .unwrap_or("[data-widget='webDescription']");
+        let atc_container = self
+            .selector("product.addToCart.container")
+            .unwrap_or("[data-widget='webAddToCart']");
+
+        let wait_result = self
+            .wait_for_any_selector(
+                transport,
+                &[heading, atc_container, description],
+                Duration::from_secs(15),
+            )
+            .await;
+
+        if let Err(error) = wait_result {
+            if strict_open_from_search {
+                bail!("clicked candidate from search but product page did not load: {error}");
+            }
+        }
+
+        Ok(Some(json!({
+            "opened_from_search": true,
+            "strict": strict_open_from_search,
+            "method": click_method,
+            "index": selected_index,
+            "selector": selected_selector,
+            "url": selected_url,
+        })))
+    }
+
     async fn handle_search_and_parse<T: Transport>(
         &self,
         transport: &T,
@@ -428,8 +733,16 @@ impl OzonHandler {
         }))
     }
 
-    async fn handle_parse_product_page<T: Transport>(&self, transport: &T) -> Result<Value> {
+    async fn handle_parse_product_page<T: Transport>(
+        &self,
+        transport: &T,
+        args: &Value,
+    ) -> Result<Value> {
         self.ensure_attached(transport).await?;
+
+        let open_from_search_meta = self
+            .open_product_from_search_if_requested(transport, args)
+            .await?;
 
         self.browser_call(
             transport,
@@ -482,6 +795,12 @@ impl OzonHandler {
         );
 
         let mut data = self.eval_value(transport, &expression).await?;
+
+        if let Some(meta) = open_from_search_meta {
+            if let Some(obj) = data.as_object_mut() {
+                obj.insert("open_from_search".to_string(), meta);
+            }
+        }
 
         // Size dropdown (best-effort)
         if let Some(size_trigger) = self.selector("product.aspects.sizeDropdown.trigger") {

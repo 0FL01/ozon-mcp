@@ -102,7 +102,7 @@ pub const OZON_TOOLS: [ToolCatalogEntry; 5] = [
     },
     ToolCatalogEntry {
         name: "ozon_parse_product_page",
-        description: "Parse data from current Ozon product page",
+        description: "Parse product page (optionally open from search first)",
         domain: ToolDomain::Ozon,
     },
     ToolCatalogEntry {

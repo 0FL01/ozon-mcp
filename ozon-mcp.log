@@ -1,9 +1,0 @@
-[INFO] Starting Ozon MCP Rust scaffold (iteration 2).
-[INFO] Configured extension bridge endpoint: 127.0.0.1:5555
-[DEBUG] Selected transport: direct-transport
-[INFO] Registered 25 tool descriptors.
-[INFO] Handlers are intentionally stubs in migration iteration 2.
-Error: failed to start MCP stdio service
-
-Caused by:
-    connection closed: initialized request
