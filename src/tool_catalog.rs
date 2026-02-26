@@ -11,20 +11,15 @@ pub struct ToolCatalogEntry {
     pub domain: ToolDomain,
 }
 
-pub const BROWSER_TOOL_NAMES: [&str; 13] = [
+pub const BROWSER_TOOL_NAMES: [&str; 8] = [
     "browser_tabs",
     "browser_navigate",
     "browser_interact",
     "browser_snapshot",
-    "browser_lookup",
     "browser_take_screenshot",
     "browser_evaluate",
     "browser_console_messages",
-    "browser_fill_form",
-    "browser_window",
-    "browser_network_requests",
     "browser_handle_dialog",
-    "browser_extract_content",
 ];
 
 pub const OZON_TOOL_NAMES: [&str; 5] = [
@@ -37,20 +32,15 @@ pub const OZON_TOOL_NAMES: [&str; 5] = [
     // See handle_apply_filter in ozon_handler.rs for implementation details
 ];
 
-pub const ALL_TOOL_NAMES: [&str; 18] = [
+pub const ALL_TOOL_NAMES: [&str; 13] = [
     "browser_tabs",
     "browser_navigate",
     "browser_interact",
     "browser_snapshot",
-    "browser_lookup",
     "browser_take_screenshot",
     "browser_evaluate",
     "browser_console_messages",
-    "browser_fill_form",
-    "browser_window",
-    "browser_network_requests",
     "browser_handle_dialog",
-    "browser_extract_content",
     "ozon_search_and_parse",
     "ozon_parse_product_page",
     "ozon_cart_action",
@@ -61,7 +51,7 @@ pub const ALL_TOOL_NAMES: [&str; 18] = [
     // Requires proper React event simulation (dispatchEvent + state management)
 ];
 
-pub const BROWSER_TOOLS: [ToolCatalogEntry; 13] = [
+pub const BROWSER_TOOLS: [ToolCatalogEntry; 8] = [
     ToolCatalogEntry {
         name: "browser_tabs",
         description: "Manage browser tabs",
@@ -83,11 +73,6 @@ pub const BROWSER_TOOLS: [ToolCatalogEntry; 13] = [
         domain: ToolDomain::Browser,
     },
     ToolCatalogEntry {
-        name: "browser_lookup",
-        description: "Lookup snapshot element by ref",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
         name: "browser_take_screenshot",
         description: "Capture screenshot from active tab",
         domain: ToolDomain::Browser,
@@ -103,28 +88,8 @@ pub const BROWSER_TOOLS: [ToolCatalogEntry; 13] = [
         domain: ToolDomain::Browser,
     },
     ToolCatalogEntry {
-        name: "browser_fill_form",
-        description: "Fill form fields by selector",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
-        name: "browser_window",
-        description: "Control browser window state",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
-        name: "browser_network_requests",
-        description: "List captured network requests",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
         name: "browser_handle_dialog",
         description: "Accept or dismiss active dialog",
-        domain: ToolDomain::Browser,
-    },
-    ToolCatalogEntry {
-        name: "browser_extract_content",
-        description: "Extract structured page content",
         domain: ToolDomain::Browser,
     },
 ];
@@ -186,13 +151,13 @@ mod tests {
 
     #[test]
     fn tool_catalog_includes_full_iteration_one_surface() {
-        assert_eq!(BROWSER_TOOL_NAMES.len(), 13);
+        assert_eq!(BROWSER_TOOL_NAMES.len(), 8);
         assert_eq!(OZON_TOOL_NAMES.len(), 5); // Disabled: ozon_apply_filter (see OZON_TOOLS comments)
-        assert_eq!(ALL_TOOL_NAMES.len(), 18); // Disabled: ozon_apply_filter
+        assert_eq!(ALL_TOOL_NAMES.len(), 13); // Disabled: ozon_apply_filter
 
         let names: BTreeSet<&str> = ALL_TOOL_NAMES.into_iter().collect();
         assert!(names.contains("browser_tabs"));
-        assert!(names.contains("browser_extract_content"));
+        assert!(names.contains("browser_snapshot"));
         assert!(names.contains("ozon_search_and_parse"));
         assert!(names.contains("ozon_get_share_link"));
         assert!(names.contains("ozon_ownership_status"));

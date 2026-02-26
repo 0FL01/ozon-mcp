@@ -23,16 +23,13 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
         let outcome = match name {
             "browser_tabs" => self.handle_tabs(&args, raw_result).await,
             "browser_navigate" => self.handle_navigate(&args, raw_result).await,
+            "browser_snapshot" => self.handle_snapshot(raw_result).await,
             "browser_evaluate" => self.handle_evaluate(&args, raw_result).await,
+            "browser_console_messages" => self.handle_console_messages(&args, raw_result).await,
             "browser_take_screenshot" => self.handle_take_screenshot(&args, raw_result).await,
             "browser_handle_dialog" => self.handle_handle_dialog(&args, raw_result).await,
             "browser_interact" => self.handle_interact(&args, raw_result).await,
-            _ => Ok(json!({
-                "status": "stub",
-                "tool": name,
-                "args": args,
-                "message": "Browser tool is not implemented in Rust iteration 1."
-            })),
+            _ => bail!("unsupported browser tool: {name}"),
         };
 
         match outcome {
@@ -266,6 +263,67 @@ impl<'a, T: Transport> BrowserHandler<'a, T> {
             "result": payload.get("result").and_then(|v| v.get("value")).cloned().unwrap_or(Value::Null),
             "type": payload.get("result").and_then(|v| v.get("type")).cloned().unwrap_or(Value::Null),
         }))
+    }
+
+    async fn handle_snapshot(&self, raw_result: bool) -> Result<Value> {
+        let payload = self
+            .send_cdp("Accessibility.getFullAXTree", json!({}))
+            .await?;
+
+        if raw_result {
+            return Ok(payload);
+        }
+
+        let snapshot = payload
+            .get("formattedSnapshot")
+            .and_then(|v| v.get("text"))
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .unwrap_or_default();
+
+        Ok(json!({
+            "snapshot": snapshot,
+            "format": "slim",
+        }))
+    }
+
+    async fn handle_console_messages(&self, args: &Value, raw_result: bool) -> Result<Value> {
+        let action = string_arg(args, "action").unwrap_or("list");
+
+        match action {
+            "list" => {
+                let payload = self.send_command("getConsoleMessages", json!({})).await?;
+
+                if raw_result {
+                    return Ok(payload);
+                }
+
+                let messages = payload
+                    .get("messages")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+
+                Ok(json!({
+                    "action": "list",
+                    "messages": messages,
+                    "total": messages.len(),
+                }))
+            }
+            "clear" => {
+                let payload = self.send_command("clearConsoleMessages", json!({})).await?;
+
+                if raw_result {
+                    return Ok(payload);
+                }
+
+                Ok(json!({
+                    "action": "clear",
+                    "success": payload.get("success").and_then(Value::as_bool).unwrap_or(true),
+                }))
+            }
+            _ => bail!("unknown browser_console_messages action: {action}"),
+        }
     }
 
     async fn handle_take_screenshot(&self, args: &Value, raw_result: bool) -> Result<Value> {
@@ -1197,6 +1255,14 @@ pub fn input_schema_for_tool(name: &str) -> Value {
             },
             "required": ["actions"]
         }),
+        "browser_snapshot" => json!({
+            "type": "object",
+            "properties": {
+                "raw_result": {
+                    "type": "boolean",
+                }
+            }
+        }),
         "browser_take_screenshot" => json!({
             "type": "object",
             "properties": {
@@ -1248,6 +1314,19 @@ pub fn input_schema_for_tool(name: &str) -> Value {
                 },
                 "text": {
                     "type": "string",
+                },
+                "raw_result": {
+                    "type": "boolean",
+                }
+            }
+        }),
+        "browser_console_messages" => json!({
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["list", "clear"],
+                    "description": "list: get collected console messages, clear: clear message buffer"
                 },
                 "raw_result": {
                     "type": "boolean",

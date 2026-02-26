@@ -169,10 +169,7 @@ impl OzonHandler {
             if !automatable {
                 return None;
             }
-            let active = tab
-                .get("active")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
+            let active = tab.get("active").and_then(Value::as_bool).unwrap_or(false);
             if !active {
                 return None;
             }
